@@ -65,11 +65,8 @@
                     </div>
                 </div>
 
-                <!-- Контейнер для динамически добавляемых полей -->
-                <div id="special-payments-container"></div>
-
-                <!-- Строка для кнопки "Добавить" -->
-                <div class="ui-form-row">
+                <!-- Строка для кнопки "Добавить", перед которой будут вставляться новые поля -->
+                <div class="ui-form-row" id="add-payment-row">
                     <div class="ui-form-label"></div> <!-- Пустая метка для выравнивания -->
                     <div class="ui-form-content">
                         <button type="button" id="add-payment-btn" class="ui-btn ui-btn-light-border">Добавить особенный платеж</button>
@@ -79,7 +76,7 @@
                 <div class="ui-form-row">
                     <div class="ui-form-label"></div> <!-- Пустая метка для выравнивания -->
                     <div class="ui-form-content">
-                        <button type="submit" class="ui-btn ui-btn-success">Сформировать</button>
+                        <button type="submit" class="ui-btn ui-btn-primary">Сформировать</button>
                     </div>
                 </div>
             </div>
@@ -90,7 +87,7 @@
 
     <!-- Flatpickr JS -->
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script> <!-- ИСПРАВЛЕННЫЙ CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
 
     <!-- Ваш основной скрипт -->
     <script src="{{ url_for('static', filename='script.js') }}"></script>

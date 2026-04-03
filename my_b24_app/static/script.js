@@ -15,7 +15,7 @@ BX24.init(function() {
     const currentDealTypeIdInput = document.getElementById('current_deal_type_id');
     const dealTypeSelect = document.getElementById('deal_type_select');
     const addPaymentBtn = document.getElementById('add-payment-btn');
-    const specialPaymentsContainer = document.getElementById('special-payments-container');
+    const addPaymentRow = document.getElementById('add-payment-row'); // Находим строку с кнопкой
     let specialPaymentCounter = 0;
     const MAX_SPECIAL_PAYMENTS = 3;
 
@@ -38,7 +38,7 @@ BX24.init(function() {
             </div>
         `;
         // Вставляем новое поле ПЕРЕД строкой с кнопкой "Добавить"
-        specialPaymentsContainer.appendChild(newPaymentRow);
+        addPaymentRow.parentNode.insertBefore(newPaymentRow, addPaymentRow);
 
         if (specialPaymentCounter >= MAX_SPECIAL_PAYMENTS) {
             addPaymentBtn.style.display = 'none'; // Скрываем кнопку, когда достигнут лимит

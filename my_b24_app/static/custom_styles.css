@@ -62,8 +62,8 @@ body {
 
 .ui-ctl-element:focus {
     outline: none;
-    border-color: #2fc6f6;
-    box-shadow: 0 0 0 2px rgba(47, 198, 246, 0.2);
+    border-color: #0b66c3; /* Синий цвет при фокусе */
+    box-shadow: 0 0 0 2px rgba(11, 102, 195, 0.2);
 }
 
 /* Стили для выпадающего списка (select) */
@@ -110,6 +110,17 @@ body {
     line-height: 1.2; /* Для выравнивания текста */
 }
 
+.ui-btn-primary {
+    background-color: #0b66c3;
+    color: #fff;
+    border-color: #0b66c3;
+}
+
+.ui-btn-primary:hover {
+    background-color: #0a58a6;
+    border-color: #0a58a6;
+}
+
 .ui-btn-success {
     background-color: #9dcf00;
     color: #fff;
@@ -145,23 +156,23 @@ body {
 }
 
 .flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.startRange, .flatpickr-day.startRange:hover, .flatpickr-day.endRange, .flatpickr-day.endRange:hover {
-    background: #2fc6f6;
-    border-color: #2fc6f6;
+    background: #0b66c3;
+    border-color: #0b66c3;
     color: #fff;
 }
 
 .flatpickr-day.today {
-    border-color: #2fc6f6;
+    border-color: #0b66c3;
 }
 
 .flatpickr-day.today:hover {
-    background: #2fc6f6;
+    background: #0b66c3;
     color: #fff;
 }
 
 .flatpickr-day.inRange, .flatpickr-day.inRange:hover {
-    background: rgba(47, 198, 246, 0.1);
-    border-color: rgba(47, 198, 246, 0.1);
+    background: rgba(11, 102, 195, 0.1);
+    border-color: rgba(11, 102, 195, 0.1);
     color: #333;
 }
 
@@ -177,7 +188,7 @@ body {
 
 .flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-month.active,
 .flatpickr-current-month .flatpickr-numInputWrapper .numInput.cur-year.active {
-    background: #2fc6f6;
+    background: #0b66c3;
     color: #fff;
 }
 
@@ -186,7 +197,7 @@ body {
 }
 
 .flatpickr-months .flatpickr-prev-month:hover, .flatpickr-months .flatpickr-next-month:hover {
-    color: #2fc6f6;
+    color: #0b66c3;
 }
 
 .flatpickr-weekday {
