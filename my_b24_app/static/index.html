@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Форма графика платежей</title>
+    <script src="//api.bitrix24.com/api/v1/"></script>
+</head>
+<body class="template-bitrix24 template-light">
+    <div class="workarea-content-paddings">
+        <form id="payment-form">
+            <div class="ui-form">
+                <div class="ui-form-row">
+                    <div class="ui-form-label">
+                        <div class="ui-ctl-label-text">Тип сделки</div>
+                    </div>
+                    <div class="ui-form-content">
+                        <div class="ui-ctl ui-ctl-after-icon ui-ctl-dropdown ui-ctl-w100">
+                            <div class="ui-ctl-after ui-ctl-icon-angle"></div>
+                            <select id="deal_type_select" name="deal_type_select" class="ui-ctl-element" required>
+                                {% for type in deal_types %}
+                                    <option value="{{ type.ID }}" {% if type.ID == deal_data.TYPE_ID %}selected{% endif %}>{{ type.VALUE }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ui-form-row">
+                    <div class="ui-form-label">
+                        <div class="ui-ctl-label-text">Общая сумма договора</div>
+                    </div>
+                    <div class="ui-form-content">
+                        <div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
+                            <input type="number" id="total_amount" name="total_amount" class="ui-ctl-element" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ui-form-row">
+                    <div class="ui-form-label">
+                        <div class="ui-ctl-label-text">Общее количество платежей</div>
+                    </div>
+                    <div class="ui-form-content">
+                        <div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
+                            <input type="number" id="monthly_payments" name="monthly_payments" class="ui-ctl-element" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ui-form-row">
+                    <div class="ui-form-label">
+                        <div class="ui-ctl-label-text">Дата первого платежа</div>
+                    </div>
+                    <div class="ui-form-content">
+                        <div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
+                            <input type="date" id="first_payment_date" name="first_payment_date" class="ui-ctl-element" required>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ui-form-row">
+                    <div class="ui-form-content">
+                        <div id="special-payments-container"></div>
+                        <button type="button" id="add-payment-btn" class="ui-btn ui-btn-light-border ui-btn-sm">Добавить начальный платеж</button>
+                    </div>
+                </div>
+
+                <div class="ui-form-row">
+                    <div class="ui-form-content">
+                        <button type="submit" class="ui-btn ui-btn-success">Сформировать</button>
+                    </div>
+                </div>
+            </div>
+            <input type="hidden" id="deal_id" name="deal_id" value="{{ deal_id }}">
+            <input type="hidden" id="current_deal_type_id" value="{{ deal_data.TYPE_ID }}">
+        </form>
+    </div>
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
