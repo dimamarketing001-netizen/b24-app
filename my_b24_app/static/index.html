@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Форма графика платежей</title>
     <script src="//api.bitrix24.com/api/v1/"></script>
+
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <!-- Ваши кастомные стили -->
     <link rel="stylesheet" href="{{ url_for('static', filename='custom_styles.css') }}">
 </head>
 <body>
@@ -16,11 +21,14 @@
                         <div class="ui-ctl-label-text">Тип сделки</div>
                     </div>
                     <div class="ui-form-content">
-                        <select id="deal_type_select" name="deal_type_select" class="ui-ctl-element" required>
-                            {% for type in deal_types %}
-                                <option value="{{ type.ID }}" {% if type.ID == deal_data.TYPE_ID %}selected{% endif %}>{{ type.VALUE }}</option>
-                            {% endfor %}
-                        </select>
+                        <div class="ui-ctl ui-ctl-after-icon ui-ctl-dropdown ui-ctl-w100">
+                            <div class="ui-ctl-after ui-ctl-icon-angle"></div>
+                            <select id="deal_type_select" name="deal_type_select" class="ui-ctl-element" required>
+                                {% for type in deal_types %}
+                                    <option value="{{ type.ID }}" {% if type.ID == deal_data.TYPE_ID %}selected{% endif %}>{{ type.VALUE }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                 </div>
 
@@ -29,7 +37,9 @@
                         <div class="ui-ctl-label-text">Общая сумма договора</div>
                     </div>
                     <div class="ui-form-content">
-                        <input type="number" id="total_amount" name="total_amount" class="ui-ctl-element" required>
+                        <div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
+                            <input type="number" id="total_amount" name="total_amount" class="ui-ctl-element" required>
+                        </div>
                     </div>
                 </div>
 
@@ -38,7 +48,9 @@
                         <div class="ui-ctl-label-text">Общее количество платежей</div>
                     </div>
                     <div class="ui-form-content">
-                        <input type="number" id="monthly_payments" name="monthly_payments" class="ui-ctl-element" required>
+                        <div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
+                            <input type="number" id="monthly_payments" name="monthly_payments" class="ui-ctl-element" required>
+                        </div>
                     </div>
                 </div>
 
@@ -47,7 +59,9 @@
                         <div class="ui-ctl-label-text">Дата первого платежа</div>
                     </div>
                     <div class="ui-form-content">
-                        <input type="date" id="first_payment_date" name="first_payment_date" class="ui-ctl-element" required>
+                        <div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
+                            <input type="date" id="first_payment_date" name="first_payment_date" class="ui-ctl-element" required>
+                        </div>
                     </div>
                 </div>
 
@@ -68,6 +82,12 @@
             <input type="hidden" id="current_deal_type_id" value="{{ deal_data.TYPE_ID }}">
         </form>
     </div>
+
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://npmcdn.com/flatpickr/dist/l10n/ru.js"></script> <!-- Локализация для русского языка -->
+
+    <!-- Ваш основной скрипт -->
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>

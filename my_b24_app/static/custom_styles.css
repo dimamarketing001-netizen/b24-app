@@ -1,3 +1,7 @@
+/*
+ * Собственные стили для приложения, имитирующие UI Kit Битрикс24
+ */
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: #f5f7f8;
@@ -32,6 +36,18 @@ body {
     flex: 1 1 auto;
 }
 
+/* Общие стили для контролов */
+.ui-ctl {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.ui-ctl-w100 {
+    width: 100%;
+}
+
 .ui-ctl-element {
     width: 100%;
     padding: 8px 12px;
@@ -39,14 +55,44 @@ body {
     border: 1px solid #c6cdd3;
     border-radius: 4px;
     background-color: #fff;
-    transition: border-color 0.2s ease;
-    box-sizing: border-box; /* Важно для правильного расчета ширины */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+    color: #333;
 }
 
 .ui-ctl-element:focus {
     outline: none;
     border-color: #2fc6f6;
     box-shadow: 0 0 0 2px rgba(47, 198, 246, 0.2);
+}
+
+/* Стили для выпадающего списка (select) */
+.ui-ctl-dropdown {
+    position: relative;
+}
+
+.ui-ctl-dropdown .ui-ctl-element {
+    appearance: none; /* Убираем стандартную стрелку браузера */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    padding-right: 30px; /* Место для нашей стрелки */
+}
+
+.ui-ctl-after-icon {
+    position: relative;
+}
+
+.ui-ctl-icon-angle {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #80868e; /* Цвет стрелки */
+    pointer-events: none; /* Чтобы не перехватывал клики */
 }
 
 /* Стили для кнопок */
@@ -61,6 +107,7 @@ body {
     cursor: pointer;
     transition: background-color 0.2s ease, border-color 0.2s ease;
     text-decoration: none;
+    line-height: 1.2; /* Для выравнивания текста */
 }
 
 .ui-btn-success {
@@ -87,4 +134,61 @@ body {
 .ui-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+}
+
+/* Стили для Flatpickr (календаря) */
+.flatpickr-calendar {
+    border: 1px solid #c6cdd3;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    border-radius: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.flatpickr-day.selected, .flatpickr-day.selected:hover, .flatpickr-day.startRange, .flatpickr-day.startRange:hover, .flatpickr-day.endRange, .flatpickr-day.endRange:hover {
+    background: #2fc6f6;
+    border-color: #2fc6f6;
+    color: #fff;
+}
+
+.flatpickr-day.today {
+    border-color: #2fc6f6;
+}
+
+.flatpickr-day.today:hover {
+    background: #2fc6f6;
+    color: #fff;
+}
+
+.flatpickr-day.inRange, .flatpickr-day.inRange:hover {
+    background: rgba(47, 198, 246, 0.1);
+    border-color: rgba(47, 198, 246, 0.1);
+    color: #333;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-month,
+.flatpickr-current-month .flatpickr-numInputWrapper .numInput.cur-year {
+    color: #333;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-month:hover,
+.flatpickr-current-month .flatpickr-numInputWrapper .numInput.cur-year:hover {
+    background: #eef2f4;
+}
+
+.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-month.active,
+.flatpickr-current-month .flatpickr-numInputWrapper .numInput.cur-year.active {
+    background: #2fc6f6;
+    color: #fff;
+}
+
+.flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month {
+    color: #535c69;
+}
+
+.flatpickr-months .flatpickr-prev-month:hover, .flatpickr-months .flatpickr-next-month:hover {
+    color: #2fc6f6;
+}
+
+.flatpickr-weekday {
+    color: #80868e;
 }

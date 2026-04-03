@@ -1,49 +1,14 @@
 // Весь код приложения должен выполняться после инициализации API Битрикс24
 BX24.init(function() {
-    // --- НАЧАЛО БЛОКА ПОЛНОГО ЛОГИРОВАНИЯ UI ---
-    console.group("--- Диагностика UI Битрикс24 ---");
-
-    console.log(`Время инициализации: ${new Date().toISOString()}`);
-    
-    // 1. Проверяем глобальный объект BX, который должен быть всегда
-    if (typeof BX !== 'undefined') {
-        console.log("✅ Глобальный объект BX найден.", BX);
-    } else {
-        console.error("❌ Критическая ошибка: Глобальный объект BX не найден!");
-    }
-
-    // 2. Проверяем классы на теге <body>. Портал должен добавлять свои классы.
-    console.log(`Классы на <body>: "${document.body.className}"`);
-    if (!document.body.className.includes('template-bitrix24')) {
-        console.warn("⚠️ Предупреждение: на <body> отсутствует класс 'template-bitrix24'. Стили могут не применяться.");
-    }
-
-    // 3. Выводим список ВСЕХ подключенных таблиц стилей
-    console.log(`Найдено таблиц стилей: ${document.styleSheets.length}`);
-    const styleSheets = [];
-    for (let i = 0; i < document.styleSheets.length; i++) {
-        const href = document.styleSheets[i].href;
-        if (href) {
-            styleSheets.push(href);
-        } else {
-            styleSheets.push("(встроенный стиль, без href)");
-        }
-    }
-    console.table(styleSheets);
-
-    const hasUiCore = styleSheets.some(href => href.includes('ui-core'));
-    if (hasUiCore) {
-        console.log("✅ Основной бандл стилей 'ui-core' найден.");
-    } else {
-        console.error("❌ Критическая ошибка: Основной бандл стилей 'ui-core' НЕ найден. Интерфейс не будет работать.");
-    }
-
-    console.groupEnd();
-    // --- КОНЕЦ БЛОКА ЛОГИРОВАНИЯ ---
-
-
-    // Ваш основной код приложения
     console.log("BX24 initialized. Application logic starts.");
+
+    // Инициализация календаря Flatpickr
+    flatpickr("#first_payment_date", {
+        locale: "ru", // Используем русскую локализацию
+        dateFormat: "Y-m-d", // Формат даты, который будет отправляться на сервер
+        altInput: true, // Показываем пользователю дату в более читаемом формате
+        altFormat: "d.m.Y", // Формат для пользователя
+    });
 
     const form = document.getElementById('payment-form');
     const dealIdInput = document.getElementById('deal_id');
