@@ -37,10 +37,11 @@ BX24.init(function() {
                 </div>
             </div>
         `;
+        // Вставляем новое поле ПЕРЕД строкой с кнопкой "Добавить"
         specialPaymentsContainer.appendChild(newPaymentRow);
 
         if (specialPaymentCounter >= MAX_SPECIAL_PAYMENTS) {
-            addPaymentBtn.disabled = true;
+            addPaymentBtn.style.display = 'none'; // Скрываем кнопку, когда достигнут лимит
         }
     });
 
