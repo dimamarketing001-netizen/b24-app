@@ -83,73 +83,6 @@ BX24.ready(function() {
         return { fields, allFilled };
     }
 
-    async function validateAndSaveMissingFields() {
-        const areFieldsRendered = document.querySelectorAll('.missing-field-input').length > 0;
-
-        if (areFieldsRendered) {
-            const requisiteData = collectFields('#requisite-fields-container');
-            const registrationAddressData = collectFields('#registration-address-container');
-            const physicalAddressData = collectFields('#physical-address-container');
-
-            if (!requisiteData.allFilled || !registrationAddressData.allFilled || !physicalAddressData.allFilled) {
-                showError("Пожалуйста, заполните все обязательные поля.");
-                document.querySelectorAll('.missing-field-input').forEach(input => {
-                    if (!input.value.trim()) input.classList.add('field-error');
-                });
-                return false;
-            }
-
-            await fetch('/api/update_fields', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    requisite_id: requisiteIdToUpdate, 
-                    contact_id: contactIdForCreation,
-                    requisite_fields: requisiteData.fields,
-                    registration_address: registrationAddressData.fields,
-                    physical_address: physicalAddressData.fields
-                }),
-            });
-            
-            return true;
-
-        } else {
-            const dealId = document.getElementById('deal_id').value;
-            const checkRes = await fetch('/api/check_fields', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deal_id: dealId }),
-            });
-
-            if (!checkRes.ok) {
-                const errorData = await checkRes.json();
-                showError(errorData.error || "Не удалось проверить поля в Битрикс24.");
-                return false;
-            }
-
-            const checkData = await checkRes.json();
-            if (checkData.is_complete) {
-                return true;
-            }
-
-            requisiteIdToUpdate = checkData.requisite_id;
-            contactIdForCreation = checkData.contact_id;
-            const message = !requisiteIdToUpdate ? 
-                "У контакта нет реквизитов. Пожалуйста, заполните все поля для их создания." :
-                "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
-            showError(message);
-
-            const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
-            const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
-
-            renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
-            renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
-            renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
-            
-            return false;
-        }
-    }
-
     async function createSchedule() {
         const dealId = document.getElementById('deal_id').value;
         const selectedDealTypeId = document.getElementById('deal_type_select').value;
@@ -161,7 +94,6 @@ BX24.ready(function() {
                 alert('Тип сделки не изменен. Отправка графика отменена.');
                 return;
             }
-            // Логика обновления типа сделки
             try {
                 const updateResponse = await fetch('/api/update_deal_type', {
                     method: 'POST',
@@ -205,21 +137,90 @@ BX24.ready(function() {
         }
     }
 
+    // --- Главный обработчик формы ---
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         hideError();
         showLoader();
 
         try {
-            const canProceed = await validateAndSaveMissingFields();
-            if (canProceed) {
+            // --- ШАГ А: СОХРАНЕНИЕ (если нужно) ---
+            const areFieldsRendered = document.querySelectorAll('.missing-field-input').length > 0;
+            if (areFieldsRendered) {
+                const requisiteData = collectFields('#requisite-fields-container');
+                const registrationAddressData = collectFields('#registration-address-container');
+                const physicalAddressData = collectFields('#physical-address-container');
+
+                if (!requisiteData.allFilled || !registrationAddressData.allFilled || !physicalAddressData.allFilled) {
+                    showError("Пожалуйста, заполните все обязательные поля.");
+                    document.querySelectorAll('.missing-field-input').forEach(input => {
+                        if (!input.value.trim()) input.classList.add('field-error');
+                    });
+                    hideLoader();
+                    return;
+                }
+
+                const updateRes = await fetch('/api/update_fields', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        requisite_id: requisiteIdToUpdate, 
+                        contact_id: contactIdForCreation,
+                        requisite_fields: requisiteData.fields,
+                        registration_address: registrationAddressData.fields,
+                        physical_address: physicalAddressData.fields
+                    }),
+                });
+
+                if (!updateRes.ok) {
+                    showError("Не удалось сохранить данные. Попробуйте еще раз.");
+                    hideLoader();
+                    return;
+                }
+            }
+
+            // --- ШАГ Б: ПРОВЕРКА ---
+            const dealId = document.getElementById('deal_id').value;
+            const checkRes = await fetch('/api/check_fields', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deal_id: dealId }),
+            });
+
+            if (!checkRes.ok) {
+                const errorData = await checkRes.json();
+                showError(errorData.error || "Не удалось проверить поля в Битрикс24.");
+                hideLoader();
+                return;
+            }
+
+            const checkData = await checkRes.json();
+
+            // --- ШАГ В: РЕШЕНИЕ ---
+            if (checkData.is_complete) {
+                // Все хорошо, создаем график
                 requisiteContainer.innerHTML = '';
                 regAddressContainer.style.display = 'none';
                 physAddressContainer.style.display = 'none';
                 hideError();
-                
                 await createSchedule();
+            } else {
+                // Показываем поля для дозаполнения
+                requisiteIdToUpdate = checkData.requisite_id;
+                contactIdForCreation = checkData.contact_id;
+                const message = !requisiteIdToUpdate ? 
+                    "У контакта нет реквизитов. Пожалуйста, заполните все поля для их создания." :
+                    "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
+                showError(message);
+
+                const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
+                const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
+
+                renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
+                renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
+                renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
             }
+
         } catch (error) {
             showError('Произошла критическая ошибка. Пожалуйста, проверьте консоль.');
             console.error(error);
@@ -228,6 +229,7 @@ BX24.ready(function() {
         }
     });
 
+    // --- Остальные обработчики ---
     document.addEventListener('input', function(event) {
         if (event.target.classList.contains('missing-field-input')) {
             if (event.target.value.trim()) {
