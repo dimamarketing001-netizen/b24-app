@@ -64,11 +64,14 @@ def check_fields():
     deal_id = data.get('deal_id')
     if not deal_id: return jsonify({"error": "Не передан ID сделки"}), 400
 
-    deal_data = b24_call_method('crm.deal.get', {'id': deal_id}).get('result', {})
+    deal_data_response = b24_call_method('crm.deal.get', {'id': deal_id})
+    if not deal_data_response or 'result' not in deal_data_response: return jsonify({"error": "Не удалось получить данные по сделке"}), 500
+    deal_data = deal_data_response['result']
+    
     contact_id = deal_data.get('CONTACT_ID')
     if not contact_id: return jsonify({"error": "В сделке не указан контакт"}), 400
 
-    requisite_list = b24_call_method('crm.requisite.list', {'filter': {'ENTITY_TYPE_ID': 3, 'ENTITY_ID': contact_id}, 'select': ['ID']})
+    requisite_list_response = b24_call_method('crm.requisite.list', {'filter': {'ENTITY_TYPE_ID': 3, 'ENTITY_ID': contact_id}, 'select': ['ID']})
     
     is_fully_complete = True
     response_data = {
@@ -76,20 +79,21 @@ def check_fields():
         "data": {"requisite_fields": {}, "registration_address": {}, "physical_address": {}}
     }
 
-    if not requisite_list or not requisite_list.get('result'):
+    if not requisite_list_response or not requisite_list_response.get('result'):
         is_fully_complete = False
         response_data["data"]["requisite_fields"] = {code: "" for code in REQUIRED_REQUISITE_FIELDS}
         response_data["data"]["registration_address"] = {code: "" for code in REQUIRED_ADDRESS_FIELDS}
         response_data["data"]["physical_address"] = {code: "" for code in REQUIRED_ADDRESS_FIELDS}
     else:
-        requisite_id = requisite_list['result'][0]['ID']
+        requisite_id = requisite_list_response['result'][0]['ID']
         response_data["requisite_id"] = requisite_id
         
         requisite_data = b24_call_method('crm.requisite.get', {'id': requisite_id}).get('result', {})
-        all_addresses = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': requisite_id, 'ENTITY_TYPE_ID': 8}}).get('result', [])
+        all_addresses_response = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': requisite_id, 'ENTITY_TYPE_ID': 8}})
+        all_addresses = all_addresses_response.get('result', []) if all_addresses_response else []
         
-        reg_address_data = next((addr for addr in all_addresses if addr.get('TYPE_ID') == 6), {})
-        phys_address_data = next((addr for addr in all_addresses if addr.get('TYPE_ID') == 1), {})
+        reg_address_data = next((addr for addr in all_addresses if str(addr.get('TYPE_ID')) == '6'), {})
+        phys_address_data = next((addr for addr in all_addresses if str(addr.get('TYPE_ID')) == '1'), {})
 
         req_fields, req_complete = get_entity_data(requisite_data, REQUIRED_REQUISITE_FIELDS)
         reg_addr_fields, reg_addr_complete = get_entity_data(reg_address_data, REQUIRED_ADDRESS_FIELDS)
@@ -127,11 +131,12 @@ def update_fields():
     elif requisite_fields:
         b24_call_method('crm.requisite.update', {'id': target_requisite_id, 'fields': requisite_fields})
 
-    for addr_type_id, addr_fields in [(6, reg_addr_fields), (1, phys_addr_fields)]:
+    for addr_type_id, addr_fields in [('6', reg_addr_fields), ('1', phys_addr_fields)]:
         if not addr_fields: continue
         
-        addr_list = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8, 'TYPE_ID': addr_type_id}})
-        addr_id = addr_list.get('result', [{}])[0].get('ID') if addr_list.get('result') else None
+        addr_list_response = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8, 'TYPE_ID': addr_type_id}})
+        addr_list = addr_list_response.get('result', []) if addr_list_response else []
+        addr_id = addr_list[0].get('ID') if addr_list else None
         
         addr_fields.update({'TYPE_ID': addr_type_id, 'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8})
         if addr_id:
@@ -143,26 +148,105 @@ def update_fields():
 
 def get_b24_deal(deal_id):
     if not deal_id: return {}
-    return b24_call_method('crm.deal.get', {'id': deal_id}).get('result', {})
+    deal_response = b24_call_method('crm.deal.get', {'id': deal_id})
+    return deal_response.get('result', {}) if deal_response else {}
 
 def run_b24_process(deal_id, total_amount, monthly_payments, first_payment_date_str, special_payments, deal_type_id):
-    # ... (без изменений)
-    pass
+    app.logger.info(f"Фоновый процесс запущен для сделки {deal_id}")
+    product_rows = []
+    first_payment_date = datetime.datetime.strptime(first_payment_date_str, '%Y-%m-%d').date()
+    
+    remaining_amount = total_amount
+    remaining_payments_count = monthly_payments
+
+    for i, special_amount in enumerate(special_payments):
+        payment_date = first_payment_date + datetime.timedelta(days=30 * i)
+        product_rows.append({"PRODUCT_NAME": payment_date.strftime('%d.%m.%Y'), "PRICE": special_amount, "QUANTITY": 1})
+        remaining_amount -= special_amount
+        remaining_payments_count -= 1
+
+    if remaining_payments_count > 0:
+        if remaining_amount < 0:
+            app.logger.error("Ошибка расчета: сумма особых платежей превышает общую сумму договора.")
+            return
+        standard_payment_amount = round(remaining_amount / remaining_payments_count, 2)
+        total_calculated = sum(special_payments) + standard_payment_amount * remaining_payments_count
+        last_payment_adjustment = total_amount - total_calculated
+        start_index = len(special_payments)
+        for i in range(start_index, monthly_payments):
+            payment_date = first_payment_date + datetime.timedelta(days=30 * i)
+            current_payment = standard_payment_amount
+            if i == monthly_payments - 1:
+                current_payment += last_payment_adjustment
+            product_rows.append({"PRODUCT_NAME": payment_date.strftime('%d.%m.%Y'), "PRICE": round(current_payment, 2), "QUANTITY": 1})
+
+    b24_call_method('crm.deal.productrows.set', {'id': deal_id, 'rows': product_rows})
+    
+    template_id = DOCUMENT_TEMPLATE_MAPPING.get(deal_type_id)
+    if template_id:
+        b24_call_method('crm.documentgenerator.document.add', {'templateId': template_id, 'entityTypeId': '2', 'entityId': deal_id})
+    else:
+        app.logger.info(f"Для типа сделки '{deal_type_id}' не указан шаблон документа.")
+    
+    app.logger.info(f"Фоновый процесс для сделки {deal_id} завершен.")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # ... (без изменений)
-    pass
+    deal_id = ''
+    deal_data = {}
+    if request.method == 'POST':
+        form_data = request.form.to_dict()
+        placement_options_str = form_data.get('PLACEMENT_OPTIONS')
+        if placement_options_str:
+            try:
+                deal_id = json.loads(placement_options_str).get('ID')
+                if deal_id:
+                    deal_data = get_b24_deal(deal_id)
+            except json.JSONDecodeError:
+                app.logger.error("Не удалось распарсить PLACEMENT_OPTIONS")
+    
+    return render_template('index.html', deal_id=deal_id, deal_data=deal_data, deal_types=HARDCODED_DEAL_TYPES)
 
 @app.route('/api/update_deal_type', methods=['POST'])
 def update_deal_type():
-    # ... (без изменений)
-    pass
+    data = request.get_json()
+    deal_id = data.get('deal_id')
+    new_type_id = data.get('new_type_id')
+
+    if not deal_id or not new_type_id:
+        return jsonify({"error": "Необходим ID сделки и новый тип."}), 400
+
+    update_result = b24_call_method('crm.deal.update', {'id': deal_id, 'fields': {'TYPE_ID': new_type_id}})
+    
+    if update_result and 'result' in update_result:
+        return jsonify({"success": True}), 200
+    else:
+        app.logger.error(f"Не удалось обновить тип сделки: {update_result}")
+        return jsonify({"error": "Не удалось обновить тип сделки."}), 500
 
 @app.route('/api/create_payment_schedule', methods=['POST'])
 def create_payment_schedule():
-    # ... (без изменений)
-    pass
+    data = request.get_json()
+    try:
+        deal_id = data.get('deal_id')
+        total_amount = float(data.get('total_amount'))
+        monthly_payments = int(data.get('monthly_payments'))
+        first_payment_date_str = data.get('first_payment_date')
+        special_payments = data.get('special_payments', [])
+        selected_deal_type_id = data.get('selected_deal_type_id')
+        
+        if not all([deal_id, total_amount, monthly_payments, first_payment_date_str, selected_deal_type_id]):
+            raise ValueError("Не все основные поля заполнены")
+    except (ValueError, TypeError, AttributeError):
+        return jsonify({"error": "Все поля формы обязательны и должны быть корректны."}), 400
+
+    thread = threading.Thread(
+        target=run_b24_process,
+        args=(deal_id, total_amount, monthly_payments, first_payment_date_str, special_payments, selected_deal_type_id)
+    )
+    thread.start()
+    
+    return jsonify({"message": "Запрос принят в обработку"}), 202
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
