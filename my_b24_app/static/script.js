@@ -17,7 +17,7 @@ BX24.ready(function() {
     
     let specialPaymentCounter = 0;
     const MAX_SPECIAL_PAYMENTS = 3;
-    let contactIdToUpdate = null; // Сохраняем ID контакта для обновления
+    let requisiteIdToUpdate = null; // Сохраняем ID реквизита для обновления
 
     // --- Логика кастомного модального окна ---
     const modal = document.getElementById('custom-modal');
@@ -73,7 +73,7 @@ BX24.ready(function() {
             const fieldsToUpdate = {};
             let allFilled = true;
             missingInputs.forEach(input => {
-                if (input.value) {
+                if (input.value.trim()) {
                     fieldsToUpdate[input.dataset.fieldCode] = input.value;
                 } else {
                     allFilled = false;
@@ -85,39 +85,45 @@ BX24.ready(function() {
                 return;
             }
 
-            // Отправляем данные на бэкенд для обновления
             const updateRes = await fetch('/api/update_fields', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contact_id: contactIdToUpdate, fields: fieldsToUpdate }),
+                body: JSON.stringify({ requisite_id: requisiteIdToUpdate, fields: fieldsToUpdate }),
             });
 
             if (!updateRes.ok) {
-                showError("Не удалось сохранить данные. Попробуйте еще раз.");
+                const errorData = await updateRes.json();
+                showError(errorData.error || "Не удалось сохранить данные. Попробуйте еще раз.");
                 return;
             }
             
-            missingFieldsContainer.innerHTML = ''; // Очищаем поля после сохранения
+            missingFieldsContainer.innerHTML = '';
         }
 
         // --- ЭТАП 2: Проверка, нужно ли показывать поля ---
-        const checkRes = await fetch('/api/check_fields', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deal_id: dealId }),
-        });
+        try {
+            const checkRes = await fetch('/api/check_fields', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deal_id: dealId }),
+            });
 
-        if (!checkRes.ok) {
-            showError("Не удалось проверить поля в Битрикс24.");
+            if (!checkRes.ok) {
+                const errorData = await checkRes.json();
+                showError(errorData.error || "Не удалось проверить поля в Битрикс24.");
+                return;
+            }
+
+            const checkData = await checkRes.json();
+            if (checkData.missing_fields && checkData.missing_fields.length > 0) {
+                requisiteIdToUpdate = checkData.requisite_id;
+                showError("Не заполнены обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.");
+                renderMissingFields(checkData.missing_fields);
+                return;
+            }
+        } catch (e) {
+            showError("Сетевая ошибка при проверке полей.");
             return;
-        }
-
-        const checkData = await checkRes.json();
-        if (checkData.missing_fields && checkData.missing_fields.length > 0) {
-            contactIdToUpdate = checkData.contact_id;
-            showError("Не заполнены обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.");
-            renderMissingFields(checkData.missing_fields);
-            return; // Останавливаем выполнение, ждем второго нажатия
         }
 
         // --- ЭТАП 3: Основная логика (если все поля заполнены) ---
