@@ -46,7 +46,7 @@ BX24.ready(function() {
         
         const fieldsToRender = Object.keys(fieldDefinitions);
 
-        if (fieldsToRender.length > 0) {
+        if (fieldsToRender.length > 0 && Object.values(fieldsData).some(v => v === '')) {
             container.style.display = 'block';
             fieldsToRender.forEach(code => {
                 const name = fieldDefinitions[code];
@@ -102,6 +102,7 @@ BX24.ready(function() {
                             input.classList.add('field-error');
                         }
                     });
+                    hideLoader(); // Убираем загрузчик, так как есть ошибка
                     return;
                 }
 
@@ -127,6 +128,7 @@ BX24.ready(function() {
             if (!checkRes.ok) {
                 const errorData = await checkRes.json();
                 showError(errorData.error || "Не удалось проверить поля в Битрикс24.");
+                hideLoader();
                 return;
             }
 
@@ -134,18 +136,19 @@ BX24.ready(function() {
             requisiteIdToUpdate = checkData.requisite_id;
             contactIdForCreation = checkData.contact_id;
 
-            const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
-            const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
-
-            renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
-            renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
-            renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
-
             if (!checkData.is_complete) {
                 const message = !requisiteIdToUpdate ? 
                     "У контакта нет реквизитов. Пожалуйста, заполните все поля для их создания." :
                     "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
                 showError(message);
+
+                const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
+                const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
+
+                renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
+                renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
+                renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
+                hideLoader();
                 return;
             }
 
@@ -160,6 +163,7 @@ BX24.ready(function() {
                 const confirmChange = await showCustomConfirm('Тип сделки в форме отличается от текущего. Изменить тип?');
                 if (!confirmChange) {
                     alert('Тип сделки не изменен. Отправка графика отменена.');
+                    hideLoader();
                     return;
                 }
                 // ... (логика обновления типа сделки)
@@ -238,6 +242,5 @@ BX24.ready(function() {
         handleFormSubmit();
     });
 
-    // Первичная проверка при загрузке
-    handleFormSubmit();
+    // ПЕРВИЧНАЯ ПРОВЕРКА ПРИ ЗАГРУЗКЕ УДАЛЕНА
 });
