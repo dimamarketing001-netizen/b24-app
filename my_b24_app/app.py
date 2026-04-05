@@ -24,7 +24,7 @@ except (json.JSONDecodeError, TypeError):
 if not B24_WEBHOOK_URL:
     app.logger.critical("Критическая ошибка: B24_WEBHOOK_URL не найден!")
 
-# --- СПИСОК ОБЯЗАТЕЛЬНЫХ ПОЛЕЙ РЕКВИЗИТОВ ---
+# --- СПИСОК ОБЯЗАТЕЛЬНЫХ ПОЛЕЙ РЕКВИЗИТОВ (финальная версия) ---
 REQUIRED_REQUISITE_FIELDS = {
     "RQ_LAST_NAME": "Фамилия",
     "RQ_FIRST_NAME": "Имя",
@@ -33,7 +33,8 @@ REQUIRED_REQUISITE_FIELDS = {
     "RQ_IDENT_DOC_NUM": "Номер паспорта",
     "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт",
     "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта",
-    "RQ_ADDR": "Адрес регистрации (одной строкой)", # Специальный ключ для адреса
+    # "RQ_IDENT_DOC_DEP_CODE": "Код подразделения", # Раскомментируйте, если нужно
+    "REGISTRATION_ADDRESS": "Адрес регистрации (одной строкой)", # Специальный ключ для адреса
 }
 
 def b24_call_method(method, params):
@@ -64,10 +65,7 @@ def check_fields():
     if not contact_id:
         return jsonify({"error": "В сделке не указан контакт"}), 400
 
-    requisite_list = b24_call_method('crm.requisite.list', {
-        'filter': {'ENTITY_TYPE_ID': 3, 'ENTITY_ID': contact_id},
-        'select': ['ID', 'RQ_ADDR']
-    })
+    requisite_list = b24_call_method('crm.requisite.list', {'filter': {'ENTITY_TYPE_ID': 3, 'ENTITY_ID': contact_id}, 'select': ['ID']})
     if not requisite_list or not requisite_list.get('result'):
         return jsonify({"error": "У контакта нет реквизитов. Пожалуйста, создайте их."}), 400
     
@@ -79,13 +77,12 @@ def check_fields():
 
     missing_fields = []
     for field_code, field_name in REQUIRED_REQUISITE_FIELDS.items():
-        if field_code == "RQ_ADDR":
-            # Особая проверка для адреса
-            addr_data = requisite_data['result'].get('RQ_ADDR')
-            # Ищем адрес регистрации (TYPE_ID = 6)
-            reg_address = next((addr for addr in addr_data.values() if addr.get('TYPE_ID') == 6), None)
+        if field_code == "REGISTRATION_ADDRESS":
+            # Ищем адрес регистрации (TYPE_ID = 6) или любой другой, если его нет
+            addr_list = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': requisite_id, 'ENTITY_TYPE_ID': 8}})
+            reg_address = next((addr for addr in addr_list.get('result', []) if addr.get('TYPE_ID') == 6), None)
             if not reg_address or not reg_address.get('ADDRESS_1'):
-                missing_fields.append({"code": "RQ_ADDR", "name": field_name})
+                missing_fields.append({"code": "REGISTRATION_ADDRESS", "name": field_name})
         elif not requisite_data['result'].get(field_code) or not str(requisite_data['result'].get(field_code)).strip():
             missing_fields.append({"code": field_code, "name": field_name})
             
@@ -100,16 +97,12 @@ def update_fields():
     if not requisite_id or not fields_to_update:
         return jsonify({"error": "Не переданы ID реквизита или поля для обновления"}), 400
 
-    # Отделяем адрес от остальных полей
-    address_str = fields_to_update.pop('RQ_ADDR', None)
+    address_str = fields_to_update.pop('REGISTRATION_ADDRESS', None)
     
-    # Обновляем обычные поля
     if fields_to_update:
         b24_call_method('crm.requisite.update', {'id': requisite_id, 'fields': fields_to_update})
 
-    # Обновляем адрес, если он был передан
     if address_str:
-        # Сначала нужно найти ID адреса регистрации
         addr_list = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': requisite_id, 'ENTITY_TYPE_ID': 8, 'TYPE_ID': 6}})
         addr_id = addr_list.get('result', [{}])[0].get('ID') if addr_list.get('result') else None
         
@@ -121,7 +114,6 @@ def update_fields():
 
     return jsonify({"success": True}), 200
 
-# ... (остальной код без изменений) ...
 def get_b24_deal(deal_id):
     if not deal_id: return {}
     return b24_call_method('crm.deal.get', {'id': deal_id}).get('result', {})
