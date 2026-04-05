@@ -24,10 +24,14 @@ except (json.JSONDecodeError, TypeError):
 if not B24_WEBHOOK_URL:
     app.logger.critical("Критическая ошибка: B24_WEBHOOK_URL не найден!")
 
+# Добавлены новые поля из шаблона
 REQUIRED_REQUISITE_FIELDS = {
     "RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество",
+    "RQ_BIRTHDATE": "Дата рождения",
+    "RQ_IDENT_DOC": "Тип документа",
     "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта",
     "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта",
+    "RQ_IDENT_DOC_DEP_CODE": "Код подразделения"
 }
 REQUIRED_ADDRESS_FIELDS = {
     "COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город",
@@ -81,7 +85,12 @@ def check_fields():
     is_fully_complete = True
     response_data = {
         "requisite_id": None, "contact_id": contact_id,
-        "data": {"requisite_fields": {}, "registration_address": {}, "physical_address": {}}
+        "data": {"requisite_fields": {}, "registration_address": {}, "physical_address": {}},
+        # Передаем определения полей на фронтенд
+        "definitions": {
+            "requisite_fields": REQUIRED_REQUISITE_FIELDS,
+            "address_fields": REQUIRED_ADDRESS_FIELDS
+        }
     }
 
     if not requisite_list_response or not requisite_list_response.get('result'):
@@ -136,11 +145,9 @@ def update_fields():
     elif requisite_fields:
         b24_call_method('crm.requisite.update', {'id': target_requisite_id, 'fields': requisite_fields})
 
-    # Получаем все адреса для данного реквизита
     all_addresses_response = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8}})
     all_addresses = all_addresses_response.get('result', []) if all_addresses_response else []
 
-    # Создаем словарь для быстрого доступа к адресам по их типу
     addresses_by_type = {str(addr.get('TYPE_ID')): addr for addr in all_addresses}
 
     for addr_type_id, addr_fields in [('6', reg_addr_fields), ('1', phys_addr_fields)]:
@@ -148,15 +155,12 @@ def update_fields():
         
         addr_fields.update({'TYPE_ID': addr_type_id, 'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8})
         
-        # Проверяем, существует ли адрес с таким типом
         existing_address = addresses_by_type.get(addr_type_id)
         
         if existing_address:
-            # Если адрес существует, обновляем его
             addr_id = existing_address.get('ID')
             b24_call_method('crm.address.update', {'id': addr_id, 'fields': addr_fields})
         else:
-            # Если адрес не существует, создаем новый
             b24_call_method('crm.address.add', {'fields': addr_fields})
 
     return jsonify({"success": True}), 200

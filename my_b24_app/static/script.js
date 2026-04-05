@@ -233,12 +233,10 @@ BX24.ready(function() {
                     "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
                 showError(message);
 
-                const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
-                const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
-
-                renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
-                renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
-                renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
+                // Используем определения полей, полученные с бэкенда
+                renderFields(checkData.data.requisite_fields, requisiteContainer, checkData.definitions.requisite_fields);
+                renderFields(checkData.data.registration_address, regAddressContainer, checkData.definitions.address_fields);
+                renderFields(checkData.data.physical_address, physAddressContainer, checkData.definitions.address_fields);
                 
                 fieldsAreDisplayed = true; // Ставим флаг, что поля на экране
             }
