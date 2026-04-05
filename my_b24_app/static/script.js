@@ -17,7 +17,8 @@ BX24.ready(function() {
     
     let specialPaymentCounter = 0;
     const MAX_SPECIAL_PAYMENTS = 3;
-    let requisiteIdToUpdate = null; // Сохраняем ID реквизита для обновления
+    let requisiteIdToUpdate = null;
+    let contactIdForCreation = null;
 
     // --- Логика кастомного модального окна ---
     const modal = document.getElementById('custom-modal');
@@ -45,7 +46,7 @@ BX24.ready(function() {
     }
 
     function renderMissingFields(fields) {
-        missingFieldsContainer.innerHTML = ''; // Очищаем контейнер
+        missingFieldsContainer.innerHTML = '';
         fields.forEach(field => {
             const fieldRow = document.createElement('div');
             fieldRow.classList.add('ui-form-row');
@@ -88,7 +89,11 @@ BX24.ready(function() {
             const updateRes = await fetch('/api/update_fields', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ requisite_id: requisiteIdToUpdate, fields: fieldsToUpdate }),
+                body: JSON.stringify({
+                    requisite_id: requisiteIdToUpdate,
+                    contact_id: contactIdForCreation,
+                    fields: fieldsToUpdate
+                }),
             });
 
             if (!updateRes.ok) {
@@ -117,7 +122,11 @@ BX24.ready(function() {
             const checkData = await checkRes.json();
             if (checkData.missing_fields && checkData.missing_fields.length > 0) {
                 requisiteIdToUpdate = checkData.requisite_id;
-                showError("Не заполнены обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.");
+                contactIdForCreation = checkData.contact_id;
+                const message = requisiteIdToUpdate ?
+                    "Не заполнены обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз." :
+                    "У контакта нет реквизитов. Пожалуйста, заполните все поля для их создания.";
+                showError(message);
                 renderMissingFields(checkData.missing_fields);
                 return;
             }
