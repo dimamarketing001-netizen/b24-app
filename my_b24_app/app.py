@@ -136,17 +136,27 @@ def update_fields():
     elif requisite_fields:
         b24_call_method('crm.requisite.update', {'id': target_requisite_id, 'fields': requisite_fields})
 
+    # Получаем все адреса для данного реквизита
+    all_addresses_response = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8}})
+    all_addresses = all_addresses_response.get('result', []) if all_addresses_response else []
+
+    # Создаем словарь для быстрого доступа к адресам по их типу
+    addresses_by_type = {str(addr.get('TYPE_ID')): addr for addr in all_addresses}
+
     for addr_type_id, addr_fields in [('6', reg_addr_fields), ('1', phys_addr_fields)]:
         if not addr_fields: continue
         
-        addr_list_response = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8, 'TYPE_ID': addr_type_id}})
-        addr_list = addr_list_response.get('result', []) if addr_list_response else []
-        addr_id = addr_list[0].get('ID') if addr_list else None
-        
         addr_fields.update({'TYPE_ID': addr_type_id, 'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8})
-        if addr_id:
+        
+        # Проверяем, существует ли адрес с таким типом
+        existing_address = addresses_by_type.get(addr_type_id)
+        
+        if existing_address:
+            # Если адрес существует, обновляем его
+            addr_id = existing_address.get('ID')
             b24_call_method('crm.address.update', {'id': addr_id, 'fields': addr_fields})
         else:
+            # Если адрес не существует, создаем новый
             b24_call_method('crm.address.add', {'fields': addr_fields})
 
     return jsonify({"success": True}), 200
