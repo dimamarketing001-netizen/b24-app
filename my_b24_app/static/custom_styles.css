@@ -1,226 +1,35 @@
-/*
- * Собственные стили для приложения, имитирующие UI Kit Битрикс24
- */
+/* ... (все предыдущие стили) ... */
 
-body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background-color: #f5f7f8;
-    margin: 0;
-    padding: 20px;
-    color: #333;
-}
-
-.workarea-content-paddings {
-    max-width: 700px;
-    margin: 0 auto;
-    background-color: #fff;
-    padding: 20px;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-}
-
-.ui-form-row {
-    display: flex;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.ui-form-label {
-    flex: 0 0 200px;
-    font-size: 14px;
-    color: #535c69;
-    padding-right: 15px;
-}
-
-.ui-form-content {
-    flex: 1 1 auto;
-}
-
-/* Стили для сообщений об ошибках */
-.ui-alert {
-    padding: 15px;
-    margin-bottom: 20px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-}
-
-.ui-alert-danger {
-    color: #a94442;
-    background-color: #f2dede;
-    border-color: #ebccd1;
-}
-
-/* Общие стили для контролов */
-.ui-ctl {
-    position: relative;
-    display: flex;
-    align-items: center;
-    width: 100%;
-}
-
-.ui-ctl-w100 {
-    width: 100%;
-}
-
-.ui-ctl-element {
-    width: 100%;
-    padding: 8px 12px;
-    font-size: 14px;
-    border: 1px solid #c6cdd3;
-    border-radius: 4px;
-    background-color: #fff;
-    transition: border-color 0.2s ease, box-shadow 0.2s ease;
-    box-sizing: border-box;
-    color: #333;
-}
-
-.ui-ctl-element:focus {
-    outline: none;
-    border-color: #0b66c3;
-    box-shadow: 0 0 0 2px rgba(11, 102, 195, 0.2);
-}
-
-/* Стили для выпадающего списка (select) */
-.ui-ctl-dropdown {
-    position: relative;
-}
-
-.ui-ctl-dropdown .ui-ctl-element {
-    appearance: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    padding-right: 30px;
-}
-
-.ui-ctl-after-icon {
-    position: relative;
-}
-
-.ui-ctl-icon-angle {
-    position: absolute;
-    right: 10px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 0;
-    height: 0;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 5px solid #80868e;
-    pointer-events: none;
-}
-
-/* Стили для кнопок */
-.ui-btn {
-    display: inline-block;
-    padding: 8px 18px;
-    font-size: 14px;
-    font-weight: bold;
-    text-align: center;
-    border-radius: 4px;
-    border: 1px solid transparent;
-    cursor: pointer;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-    text-decoration: none;
-    line-height: 1.2;
-}
-
-.ui-btn-primary {
-    background-color: #0b66c3;
-    color: #fff;
-    border-color: #0b66c3;
-}
-
-.ui-btn-primary:hover {
-    background-color: #0a58a6;
-    border-color: #0a58a6;
-}
-
-.ui-btn-light-border {
-    background-color: #fff;
-    color: #535c69;
-    border-color: #c6cdd3;
-}
-
-.ui-btn-light-border:hover {
-    background-color: #f5f7f8;
-}
-
-.ui-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-.ui-btn-xs {
-    padding: 4px 10px;
-    font-size: 12px;
-}
-
-/* Стили для Flatpickr (календаря) */
-.flatpickr-calendar {
-    border: 1px solid #c6cdd3;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    border-radius: 4px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-
-.flatpickr-day.selected, .flatpickr-day.selected:hover {
-    background: #0b66c3;
-    border-color: #0b66c3;
-    color: #fff;
-}
-
-/* Стили для кастомного модального окна */
-.modal-overlay {
+/* --- Стили для загрузчика (спиннера) --- */
+.loader-overlay {
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: rgba(255, 255, 255, 0.7);
     display: flex;
     justify-content: center;
     align-items: center;
-    z-index: 1000;
+    z-index: 2000; /* Выше чем у модального окна */
 }
 
-.modal-content {
-    background-color: #fff;
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    width: 90%;
-    max-width: 400px;
+.loader {
+    border: 5px solid #f3f3f3; /* Light grey */
+    border-top: 5px solid #0b66c3; /* Blue */
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* --- Класс для выравнивания ширины кнопок --- */
+.btn-fixed-width {
+    width: 120px; /* Вы можете подобрать нужную ширину */
     text-align: center;
-}
-
-.modal-content p {
-    margin: 0 0 20px;
-    font-size: 16px;
-    line-height: 1.5;
-}
-
-.modal-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-}
-
-/* Стили для разделения блоков адресов */
-.address-block {
-    border-top: 1px solid #eef2f4;
-    padding-top: 20px;
-    margin-top: 20px;
-}
-
-.address-block-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-.address-block-title {
-    font-size: 16px;
-    font-weight: bold;
-    color: #333;
 }
