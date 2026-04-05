@@ -1,7 +1,5 @@
 /**
- * Финальная, рабочая версия скрипта.
- * Вся логика обернута в BX24.ready(), чтобы гарантировать,
- * что все компоненты портала, включая UI, полностью загружены.
+ * Финальная, рабочая версия скрипта с кастомным модальным окном.
  */
 BX24.ready(function() {
     console.log("BX24 is ready. Application logic starts.");
@@ -19,6 +17,36 @@ BX24.ready(function() {
     const addPaymentRow = document.getElementById('add-payment-row');
     let specialPaymentCounter = 0;
     const MAX_SPECIAL_PAYMENTS = 3;
+
+    // --- Логика кастомного модального окна ---
+    const modal = document.getElementById('custom-modal');
+    const modalText = document.getElementById('modal-text');
+    const confirmBtn = document.getElementById('modal-confirm-btn');
+    const cancelBtn = document.getElementById('modal-cancel-btn');
+
+    /**
+     * Показывает кастомное модальное окно и возвращает Promise,
+     * который разрешается в true (если нажато "Да") или false (если "Нет").
+     * @param {string} text - Текст для отображения в модальном окне.
+     * @returns {Promise<boolean>}
+     */
+    function showCustomConfirm(text) {
+        return new Promise(resolve => {
+            modalText.textContent = text;
+            modal.style.display = 'flex';
+
+            confirmBtn.onclick = () => {
+                modal.style.display = 'none';
+                resolve(true);
+            };
+
+            cancelBtn.onclick = () => {
+                modal.style.display = 'none';
+                resolve(false);
+            };
+        });
+    }
+    // --- Конец логики модального окна ---
 
     addPaymentBtn.addEventListener('click', () => {
         if (specialPaymentCounter >= MAX_SPECIAL_PAYMENTS) {
@@ -53,17 +81,8 @@ BX24.ready(function() {
         const dealId = document.getElementById('deal_id').value;
 
         if (selectedDealTypeId !== currentDealTypeId) {
-            const confirmChange = await new Promise(resolve => {
-                BX24.callMethod(
-                    'ui.dialogs.messagebox.show',
-                    {
-                        message: 'Тип сделки в форме отличается от текущего в сделке. Изменить тип сделки?',
-                        buttons: BX24.UI.Dialogs.MessageBoxButtons.YES_NO,
-                        onYes: () => resolve(true),
-                        onNo: () => resolve(false)
-                    }
-                );
-            });
+            // Используем наше кастомное модальное окно
+            const confirmChange = await showCustomConfirm('Тип сделки в форме отличается от текущего в сделке. Изменить тип сделки?');
 
             if (!confirmChange) {
                 alert('Тип сделки не изменен. Отправка графика отменена.');

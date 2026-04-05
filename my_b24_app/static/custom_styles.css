@@ -170,36 +170,38 @@ body {
     color: #fff;
 }
 
-.flatpickr-day.inRange, .flatpickr-day.inRange:hover {
-    background: rgba(11, 102, 195, 0.1);
-    border-color: rgba(11, 102, 195, 0.1);
-    color: #333;
+/* --- Стили для кастомного модального окна --- */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
 }
 
-.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-month,
-.flatpickr-current-month .flatpickr-numInputWrapper .numInput.cur-year {
-    color: #333;
+.modal-content {
+    background-color: #fff;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    width: 90%;
+    max-width: 400px;
+    text-align: center;
 }
 
-.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-month:hover,
-.flatpickr-current-month .flatpickr-numInputWrapper .numInput.cur-year:hover {
-    background: #eef2f4;
+.modal-content p {
+    margin: 0 0 20px;
+    font-size: 16px;
+    line-height: 1.5;
 }
 
-.flatpickr-current-month .flatpickr-monthDropdown-months .flatpickr-month.active,
-.flatpickr-current-month .flatpickr-numInputWrapper .numInput.cur-year.active {
-    background: #0b66c3;
-    color: #fff;
-}
-
-.flatpickr-months .flatpickr-prev-month, .flatpickr-months .flatpickr-next-month {
-    color: #535c69;
-}
-
-.flatpickr-months .flatpickr-prev-month:hover, .flatpickr-months .flatpickr-next-month:hover {
-    color: #0b66c3;
-}
-
-.flatpickr-weekday {
-    color: #80868e;
+.modal-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
 }
