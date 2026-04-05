@@ -97,7 +97,6 @@ BX24.ready(function() {
 
                 if (!requisiteData.allFilled || !registrationAddressData.allFilled || !physicalAddressData.allFilled) {
                     showError("Пожалуйста, заполните все обязательные поля.");
-                    // Подсвечиваем незаполненные поля
                     document.querySelectorAll('.missing-field-input').forEach(input => {
                         if (!input.value.trim()) {
                             input.classList.add('field-error');
@@ -214,7 +213,9 @@ BX24.ready(function() {
             const physInput = document.querySelector(`#physical-address-container input[data-field-code="${fieldCode}"]`);
             if (physInput) {
                 physInput.value = regInput.value;
-                physInput.classList.remove('field-error');
+                if (physInput.value.trim()) {
+                    physInput.classList.remove('field-error');
+                }
             }
         });
     });
