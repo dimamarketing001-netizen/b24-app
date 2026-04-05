@@ -42,24 +42,6 @@ BX24.ready(function() {
             cancelBtn.onclick = () => { modal.style.display = 'none'; resolve(false); };
         });
     }
-    
-    // --- Новая функция для применения масок ---
-    function applyMasks() {
-        const maskPatterns = {
-            'RQ_BIRTHDATE': { mask: Date, pattern: 'Y-`m-`d', lazy: false, format: date => date.toISOString().split('T')[0], parse: str => new Date(str) },
-            'RQ_IDENT_DOC_DATE': { mask: Date, pattern: 'Y-`m-`d', lazy: false, format: date => date.toISOString().split('T')[0], parse: str => new Date(str) },
-            'RQ_IDENT_DOC_SER': { mask: '00 00' },
-            'RQ_IDENT_DOC_NUM': { mask: '000000' },
-            'RQ_IDENT_DOC_DEP_CODE': { mask: '000-000' }
-        };
-
-        Object.keys(maskPatterns).forEach(fieldCode => {
-            const input = document.querySelector(`[data-field-code="${fieldCode}"]`);
-            if (input) {
-                IMask(input, maskPatterns[fieldCode]);
-            }
-        });
-    }
 
     function renderFields(fieldsData, container, fieldDefinitions) {
         const wrapper = container.querySelector('.fields-wrapper') || container;
@@ -85,8 +67,6 @@ BX24.ready(function() {
                 `;
                 wrapper.appendChild(fieldRow);
             });
-            // Вызываем применение масок после отрисовки полей
-            applyMasks();
         } else {
             container.style.display = 'none';
         }
@@ -115,10 +95,8 @@ BX24.ready(function() {
             const confirmChange = await showCustomConfirm('Тип сделки в форме отличается от текущего. Изменить тип?');
             if (!confirmChange) {
                 alert('Тип сделки не изменен. Отправка графика отменена.');
-                return; 
+                return;
             }
-            
-            showLoader(); 
             try {
                 const updateResponse = await fetch('/api/update_deal_type', {
                     method: 'POST',
@@ -128,19 +106,14 @@ BX24.ready(function() {
                 if (!updateResponse.ok) {
                     const errorData = await updateResponse.json();
                     showError(`Ошибка при изменении типа сделки: ${errorData.error}`);
-                    hideLoader();
                     return;
                 }
             } catch (error) {
                 console.error('Ошибка при запросе на изменение типа сделки:', error);
                 showError('Произошла ошибка при изменении типа сделки.');
-                hideLoader();
                 return;
             }
-        } else {
-            showLoader(); 
         }
-
 
         const specialPayments = Array.from(document.querySelectorAll('.special-payment-input'))
             .map(input => parseFloat(input.value)).filter(v => !isNaN(v));
@@ -154,20 +127,16 @@ BX24.ready(function() {
             selected_deal_type_id: selectedDealTypeId
         };
 
-        try {
-            const response = await fetch('/api/create_payment_schedule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-            });
-            if (response.ok) {
-                BX24.closeApplication();
-            } else {
-                const errorData = await response.json();
-                showError(`Ошибка: ${errorData.error}`);
-            }
-        } finally {
-            hideLoader(); 
+        const response = await fetch('/api/create_payment_schedule', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+        });
+        if (response.ok) {
+            BX24.closeApplication();
+        } else {
+            const errorData = await response.json();
+            showError(`Ошибка: ${errorData.error}`);
         }
     }
 
@@ -175,10 +144,11 @@ BX24.ready(function() {
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         hideError();
-        
+        showLoader();
+
         try {
+            // --- ШАГ А: СОХРАНЕНИЕ (если поля уже на экране) ---
             if (fieldsAreDisplayed) {
-                showLoader(); 
                 const requisiteData = collectFields('#requisite-fields-container');
                 const registrationAddressData = collectFields('#registration-address-container');
                 const physicalAddressData = collectFields('#physical-address-container');
@@ -209,10 +179,9 @@ BX24.ready(function() {
                     hideLoader();
                     return;
                 }
-                hideLoader(); 
             }
             
-            showLoader(); 
+            // --- ШАГ Б: ПРОВЕРКА (выполняется всегда) ---
             const dealId = document.getElementById('deal_id').value;
             const checkRes = await fetch('/api/check_fields', {
                 method: 'POST',
@@ -226,19 +195,21 @@ BX24.ready(function() {
                 hideLoader();
                 return;
             }
-            hideLoader(); 
 
             const checkData = await checkRes.json();
 
+            // --- ШАГ В: РЕШЕНИЕ ---
             if (checkData.is_complete) {
+                // Все хорошо, создаем график
                 requisiteContainer.innerHTML = '';
                 regAddressContainer.style.display = 'none';
                 physAddressContainer.style.display = 'none';
                 hideError();
-                fieldsAreDisplayed = false; 
+                fieldsAreDisplayed = false; // Сбрасываем флаг
                 
-                await createSchedule(); 
+                await createSchedule();
             } else {
+                // Показываем поля для дозаполнения и ставим флаг
                 requisiteIdToUpdate = checkData.requisite_id;
                 contactIdForCreation = checkData.contact_id;
                 const message = !requisiteIdToUpdate ? 
@@ -246,18 +217,22 @@ BX24.ready(function() {
                     "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
                 showError(message);
 
-                renderFields(checkData.data.requisite_fields, requisiteContainer, checkData.definitions.requisite_fields);
-                renderFields(checkData.data.registration_address, regAddressContainer, checkData.definitions.address_fields);
-                renderFields(checkData.data.physical_address, physAddressContainer, checkData.definitions.address_fields);
+                const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
+                const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
+
+                renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
+                renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
+                renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
                 
-                fieldsAreDisplayed = true; 
+                fieldsAreDisplayed = true; // Ставим флаг, что поля на экране
             }
 
         } catch (error) {
             showError('Произошла критическая ошибка. Пожалуйста, проверьте консоль.');
             console.error(error);
-            hideLoader(); 
-        } 
+        } finally {
+            hideLoader();
+        }
     });
 
     // --- Остальные обработчики ---

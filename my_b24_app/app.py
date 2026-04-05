@@ -24,14 +24,10 @@ except (json.JSONDecodeError, TypeError):
 if not B24_WEBHOOK_URL:
     app.logger.critical("Критическая ошибка: B24_WEBHOOK_URL не найден!")
 
-# Добавлены новые поля из шаблона
 REQUIRED_REQUISITE_FIELDS = {
     "RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество",
-    "RQ_BIRTHDATE": "Дата рождения",
-    "RQ_IDENT_DOC": "Тип документа",
     "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта",
     "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта",
-    "RQ_IDENT_DOC_DEP_CODE": "Код подразделения"
 }
 REQUIRED_ADDRESS_FIELDS = {
     "COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город",
@@ -42,7 +38,6 @@ def b24_call_method(method, params):
     """Универсальная функция для вызова методов REST API с расширенным логированием ошибок."""
     try:
         url = B24_WEBHOOK_URL + method
-        # Логируем сам запрос для отладки
         app.logger.info(f"Вызов метода B24: {method} с параметрами: {json.dumps(params, ensure_ascii=False)}")
         response = requests.post(url, json=params)
         
@@ -93,12 +88,7 @@ def check_fields():
     is_fully_complete = True
     response_data = {
         "requisite_id": None, "contact_id": contact_id,
-        "data": {"requisite_fields": {}, "registration_address": {}, "physical_address": {}},
-        # Передаем определения полей на фронтенд
-        "definitions": {
-            "requisite_fields": REQUIRED_REQUISITE_FIELDS,
-            "address_fields": REQUIRED_ADDRESS_FIELDS
-        }
+        "data": {"requisite_fields": {}, "registration_address": {}, "physical_address": {}}
     }
 
     if not requisite_list_response or not requisite_list_response.get('result'):
@@ -134,7 +124,6 @@ def check_fields():
 @app.route('/api/update_fields', methods=['POST'])
 def update_fields():
     data = request.get_json()
-    # Улучшенное логирование
     app.logger.info(f"Получены данные для обновления: {json.dumps(data, ensure_ascii=False, indent=2)}")
 
     requisite_id = data.get('requisite_id')
@@ -156,20 +145,15 @@ def update_fields():
     elif requisite_fields:
         b24_call_method('crm.requisite.update', {'id': target_requisite_id, 'fields': requisite_fields})
 
-    all_addresses_response = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8}})
-    all_addresses = all_addresses_response.get('result', []) if all_addresses_response else []
-
-    addresses_by_type = {str(addr.get('TYPE_ID')): addr for addr in all_addresses}
-
     for addr_type_id, addr_fields in [('6', reg_addr_fields), ('1', phys_addr_fields)]:
         if not addr_fields: continue
+
+        addr_list_response = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8, 'TYPE_ID': addr_type_id}})
+        addr_list = addr_list_response.get('result', []) if addr_list_response else []
+        addr_id = addr_list[0].get('ID') if addr_list else None
         
         addr_fields.update({'TYPE_ID': addr_type_id, 'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8})
-        
-        existing_address = addresses_by_type.get(addr_type_id)
-        
-        if existing_address:
-            addr_id = existing_address.get('ID')
+        if addr_id:
             b24_call_method('crm.address.update', {'id': addr_id, 'fields': addr_fields})
         else:
             b24_call_method('crm.address.add', {'fields': addr_fields})
@@ -184,7 +168,7 @@ def get_b24_deal(deal_id):
 def run_b24_process(deal_id, total_amount, monthly_payments, first_payment_date_str, special_payments, deal_type_id):
     app.logger.info(f"Фоновый процесс запущен для сделки {deal_id}")
     product_rows = []
-    first_payment_date = datetime.datetime.strptime(first_payment_date_str, '%Y-%m-%d').date()
+    first_payment_date = datetime.datetime.strptime(first_payment_date_str, '%Y-m-d').date()
     
     remaining_amount = total_amount
     remaining_payments_count = monthly_payments
