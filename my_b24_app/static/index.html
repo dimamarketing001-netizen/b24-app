@@ -15,7 +15,72 @@
     </div>
 
     <div class="workarea-content-paddings">
-        <!-- ... (остальная часть формы без изменений) ... -->
+        <form id="payment-form">
+            <div class="ui-form">
+                <div id="error-message-container" class="ui-alert ui-alert-danger" style="display: none;"></div>
+
+                <!-- Контейнер для полей реквизитов -->
+                <div id="requisite-fields-container"></div>
+
+                <!-- Адрес регистрации -->
+                <div id="registration-address-container" class="address-block" style="display: none;">
+                    <div class="address-block-header">
+                        <h3 class="address-block-title">Адрес регистрации</h3>
+                    </div>
+                    <div class="fields-wrapper"></div>
+                </div>
+
+                <!-- Фактический адрес -->
+                <div id="physical-address-container" class="address-block" style="display: none;">
+                    <div class="address-block-header">
+                        <h3 class="address-block-title">Фактический адрес</h3>
+                        <button type="button" id="copy-address-btn" class="ui-btn ui-btn-light-border ui-btn-xs">Копировать из адреса регистрации</button>
+                    </div>
+                    <div class="fields-wrapper"></div>
+                </div>
+
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eef2f4;">
+
+                <!-- Поля калькулятора -->
+                <div class="ui-form-row">
+                    <div class="ui-form-label"><div class="ui-ctl-label-text">Тип сделки</div></div>
+                    <div class="ui-form-content">
+                        <div class="ui-ctl ui-ctl-after-icon ui-ctl-dropdown ui-ctl-w100">
+                            <div class="ui-ctl-after ui-ctl-icon-angle"></div>
+                            <select id="deal_type_select" name="deal_type_select" class="ui-ctl-element" required>
+                                {% for type in deal_types %}
+                                    <option value="{{ type.ID }}" {% if type.ID == deal_data.TYPE_ID %}selected{% endif %}>{{ type.VALUE }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="ui-form-row">
+                    <div class="ui-form-label"><div class="ui-ctl-label-text">Общая сумма договора</div></div>
+                    <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="number" id="total_amount" name="total_amount" class="ui-ctl-element" required></div></div>
+                </div>
+                <div class="ui-form-row">
+                    <div class="ui-form-label"><div class="ui-ctl-label-text">Общее количество платежей</div></div>
+                    <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="number" id="monthly_payments" name="monthly_payments" class="ui-ctl-element" required></div></div>
+                </div>
+                <div class="ui-form-row">
+                    <div class="ui-form-label"><div class="ui-ctl-label-text">Дата первого платежа</div></div>
+                    <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="date" id="first_payment_date" name="first_payment_date" class="ui-ctl-element" required></div></div>
+                </div>
+
+                <div class="ui-form-row" id="add-payment-row">
+                    <div class="ui-form-label"></div>
+                    <div class="ui-form-content"><button type="button" id="add-payment-btn" class="ui-btn ui-btn-light-border">Добавить особенный платеж</button></div>
+                </div>
+
+                <div class="ui-form-row">
+                    <div class="ui-form-label"></div>
+                    <div class="ui-form-content"><button type="submit" class="ui-btn ui-btn-primary">Сформировать</button></div>
+                </div>
+            </div>
+            <input type="hidden" id="deal_id" name="deal_id" value="{{ deal_id }}">
+            <input type="hidden" id="current_deal_type_id" value="{{ deal_data.TYPE_ID }}">
+        </form>
     </div>
 
     <!-- Кастомное модальное окно -->
