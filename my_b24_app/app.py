@@ -24,7 +24,6 @@ except (json.JSONDecodeError, TypeError):
 if not B24_WEBHOOK_URL:
     app.logger.critical("Критическая ошибка: B24_WEBHOOK_URL не найден!")
 
-# Раздельные списки обязательных полей
 REQUIRED_REQUISITE_FIELDS = {
     "RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество",
     "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта",
@@ -49,13 +48,16 @@ def b24_call_method(method, params):
         app.logger.error(f"Ошибка декодирования JSON от метода {method}: {e}")
         return None
 
-def check_entity_fields(source_data, required_fields):
-    """Проверяет набор полей в источнике."""
-    missing = []
-    for code, name in required_fields.items():
-        if not source_data.get(code, '').strip():
-            missing.append({"code": code, "name": name})
-    return missing
+def get_entity_data(source, fields):
+    """Извлекает данные полей из источника и проверяет их полноту."""
+    data = {}
+    is_complete = True
+    for code in fields.keys():
+        value = source.get(code, '').strip()
+        data[code] = value
+        if not value:
+            is_complete = False
+    return data, is_complete
 
 @app.route('/api/check_fields', methods=['POST'])
 def check_fields():
@@ -69,37 +71,44 @@ def check_fields():
 
     requisite_list = b24_call_method('crm.requisite.list', {'filter': {'ENTITY_TYPE_ID': 3, 'ENTITY_ID': contact_id}, 'select': ['ID']})
     
+    is_fully_complete = True
     response_data = {
-        "missing_requisite_fields": [],
-        "missing_registration_fields": [],
-        "missing_physical_fields": [],
-        "requisite_id": None,
-        "contact_id": contact_id
+        "requisite_id": None, "contact_id": contact_id,
+        "data": {"requisite_fields": {}, "registration_address": {}, "physical_address": {}}
     }
 
     if not requisite_list or not requisite_list.get('result'):
-        response_data["missing_requisite_fields"] = [{"code": c, "name": n} for c, n in REQUIRED_REQUISITE_FIELDS.items()]
-        response_data["missing_registration_fields"] = [{"code": c, "name": n} for c, n in REQUIRED_ADDRESS_FIELDS.items()]
-        response_data["missing_physical_fields"] = [{"code": c, "name": n} for c, n in REQUIRED_ADDRESS_FIELDS.items()]
+        is_fully_complete = False
+        response_data["data"]["requisite_fields"] = {code: "" for code in REQUIRED_REQUISITE_FIELDS}
+        response_data["data"]["registration_address"] = {code: "" for code in REQUIRED_ADDRESS_FIELDS}
+        response_data["data"]["physical_address"] = {code: "" for code in REQUIRED_ADDRESS_FIELDS}
     else:
         requisite_id = requisite_list['result'][0]['ID']
         response_data["requisite_id"] = requisite_id
         
         requisite_data = b24_call_method('crm.requisite.get', {'id': requisite_id}).get('result', {})
-        response_data["missing_requisite_fields"] = check_entity_fields(requisite_data, REQUIRED_REQUISITE_FIELDS)
-
         all_addresses = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': requisite_id, 'ENTITY_TYPE_ID': 8}}).get('result', [])
         
-        reg_address = next((addr for addr in all_addresses if addr.get('TYPE_ID') == 6), {})
-        phys_address = next((addr for addr in all_addresses if addr.get('TYPE_ID') == 1), {})
+        reg_address_data = next((addr for addr in all_addresses if addr.get('TYPE_ID') == 6), {})
+        phys_address_data = next((addr for addr in all_addresses if addr.get('TYPE_ID') == 1), {})
 
-        response_data["missing_registration_fields"] = check_entity_fields(reg_address, REQUIRED_ADDRESS_FIELDS)
-        response_data["missing_physical_fields"] = check_entity_fields(phys_address, REQUIRED_ADDRESS_FIELDS)
+        req_fields, req_complete = get_entity_data(requisite_data, REQUIRED_REQUISITE_FIELDS)
+        reg_addr_fields, reg_addr_complete = get_entity_data(reg_address_data, REQUIRED_ADDRESS_FIELDS)
+        phys_addr_fields, phys_addr_complete = get_entity_data(phys_address_data, REQUIRED_ADDRESS_FIELDS)
 
+        response_data["data"]["requisite_fields"] = req_fields
+        response_data["data"]["registration_address"] = reg_addr_fields
+        response_data["data"]["physical_address"] = phys_addr_fields
+        
+        if not (req_complete and reg_addr_complete and phys_addr_complete):
+            is_fully_complete = False
+
+    response_data["is_complete"] = is_fully_complete
     return jsonify(response_data)
 
 @app.route('/api/update_fields', methods=['POST'])
 def update_fields():
+    # ... (логика обновления остается без изменений)
     data = request.get_json()
     requisite_id = data.get('requisite_id')
     contact_id = data.get('contact_id')
