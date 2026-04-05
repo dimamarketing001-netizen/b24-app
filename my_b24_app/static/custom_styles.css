@@ -36,6 +36,20 @@ body {
     flex: 1 1 auto;
 }
 
+/* Стили для сообщений об ошибках */
+.ui-alert {
+    padding: 15px;
+    margin-bottom: 20px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+}
+
+.ui-alert-danger {
+    color: #a94442;
+    background-color: #f2dede;
+    border-color: #ebccd1;
+}
+
 /* Общие стили для контролов */
 .ui-ctl {
     position: relative;

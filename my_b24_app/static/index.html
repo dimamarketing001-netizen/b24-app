@@ -16,6 +16,9 @@
     <div class="workarea-content-paddings">
         <form id="payment-form">
             <div class="ui-form">
+                <!-- Контейнер для сообщений об ошибках -->
+                <div id="error-message-container" class="ui-alert ui-alert-danger" style="display: none;"></div>
+
                 <div class="ui-form-row">
                     <div class="ui-form-label">
                         <div class="ui-ctl-label-text">Тип сделки</div>
@@ -64,6 +67,9 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Контейнер для динамически добавляемых недостающих полей -->
+                <div id="missing-fields-container"></div>
 
                 <!-- Строка для кнопки "Добавить", перед которой будут вставляться новые поля -->
                 <div class="ui-form-row" id="add-payment-row">

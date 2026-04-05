@@ -15,8 +15,6 @@ app = Flask(__name__, static_folder='static', template_folder='static')
 
 # --- НАСТРОЙКИ ИЗ ПЕРЕМЕННЫХ ОКРУЖЕНИЯ ---
 B24_WEBHOOK_URL = os.getenv("B24_WEBHOOK_URL")
-
-# Загружаем словари из JSON-строк
 try:
     DOCUMENT_TEMPLATE_MAPPING = json.loads(os.getenv("DOCUMENT_TEMPLATE_MAPPING", "{}"))
     HARDCODED_DEAL_TYPES = json.loads(os.getenv("HARDCODED_DEAL_TYPES", "[]"))
@@ -28,7 +26,84 @@ except (json.JSONDecodeError, TypeError):
 if not B24_WEBHOOK_URL:
     app.logger.critical("Критическая ошибка: B24_WEBHOOK_URL не найден в .env файле!")
 
+# --- СПИСОК ОБЯЗАТЕЛЬНЫХ ПОЛЕЙ ---
+# TODO: Замените на реальные коды ваших пользовательских полей (UF_CRM_...)
+# Ключ - код поля, Значение - название для отображения в форме
+REQUIRED_CONTACT_FIELDS = {
+    "NAME": "Имя",
+    "LAST_NAME": "Фамилия",
+    "UF_CRM_1712173347": "Серия паспорта",
+    "UF_CRM_1712173365": "Номер паспорта",
+    "UF_CRM_1712173380": "Когда выдан",
+    "UF_CRM_1712173397": "Кем выдан",
+    "UF_CRM_1712173418": "Адрес регистрации",
+}
 
+def b24_call_method(method, params):
+    """Универсальная функция для вызова методов REST API Битрикс24."""
+    try:
+        url = B24_WEBHOOK_URL + method
+        response = requests.post(url, json=params)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"Ошибка при вызове метода {method}: {e}")
+        return None
+    except json.JSONDecodeError as e:
+        app.logger.error(f"Ошибка декодирования JSON от метода {method}: {e}")
+        return None
+
+# ... (остальные функции остаются без изменений)
+
+@app.route('/api/check_fields', methods=['POST'])
+def check_fields():
+    data = request.get_json()
+    deal_id = data.get('deal_id')
+    if not deal_id:
+        return jsonify({"error": "Не передан ID сделки"}), 400
+
+    # 1. Получаем сделку, чтобы найти ID контакта
+    deal_data = b24_call_method('crm.deal.get', {'id': deal_id})
+    if not deal_data or 'result' not in deal_data:
+        return jsonify({"error": "Не удалось получить данные по сделке"}), 500
+    
+    contact_id = deal_data['result'].get('CONTACT_ID')
+    if not contact_id:
+        return jsonify({"error": "В сделке не указан контакт"}), 400
+
+    # 2. Получаем данные контакта
+    contact_data = b24_call_method('crm.contact.get', {'id': contact_id})
+    if not contact_data or 'result' not in contact_data:
+        return jsonify({"error": "Не удалось получить данные по контакту"}), 500
+
+    # 3. Проверяем обязательные поля
+    missing_fields = []
+    for field_code, field_name in REQUIRED_CONTACT_FIELDS.items():
+        if not contact_data['result'].get(field_code):
+            missing_fields.append({"code": field_code, "name": field_name})
+            
+    return jsonify({"missing_fields": missing_fields, "contact_id": contact_id})
+
+@app.route('/api/update_fields', methods=['POST'])
+def update_fields():
+    data = request.get_json()
+    contact_id = data.get('contact_id')
+    fields_to_update = data.get('fields')
+
+    if not contact_id or not fields_to_update:
+        return jsonify({"error": "Не переданы ID контакта или поля для обновления"}), 400
+
+    update_result = b24_call_method('crm.contact.update', {
+        'id': contact_id,
+        'fields': fields_to_update
+    })
+
+    if update_result and 'result' in update_result:
+        return jsonify({"success": True}), 200
+    else:
+        return jsonify({"error": "Не удалось обновить поля контакта"}), 500
+        
+# ... (остальные маршруты остаются без изменений)
 def get_b24_deal(deal_id):
     """Получает данные по конкретной сделке."""
     if not deal_id: return {}
