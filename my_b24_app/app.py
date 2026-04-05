@@ -35,13 +35,18 @@ REQUIRED_ADDRESS_FIELDS = {
 }
 
 def b24_call_method(method, params):
+    """Универсальная функция для вызова методов REST API с расширенным логированием ошибок."""
     try:
         url = B24_WEBHOOK_URL + method
         response = requests.post(url, json=params)
+        
+        if response.status_code >= 400:
+            app.logger.error(f"Ошибка от Битрикс24 для метода {method}. Статус: {response.status_code}. Тело ответа: {response.text}")
+        
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        app.logger.error(f"Ошибка при вызове метода {method}: {e}")
+        app.logger.error(f"Сетевая ошибка при вызове метода {method}: {e}")
         return None
     except json.JSONDecodeError as e:
         app.logger.error(f"Ошибка декодирования JSON от метода {method}: {e}")
