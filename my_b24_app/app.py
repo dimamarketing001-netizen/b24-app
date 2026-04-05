@@ -42,6 +42,8 @@ def b24_call_method(method, params):
     """Универсальная функция для вызова методов REST API с расширенным логированием ошибок."""
     try:
         url = B24_WEBHOOK_URL + method
+        # Логируем сам запрос для отладки
+        app.logger.info(f"Вызов метода B24: {method} с параметрами: {json.dumps(params, ensure_ascii=False)}")
         response = requests.post(url, json=params)
         
         if response.status_code >= 400:
@@ -61,6 +63,12 @@ def get_entity_data(source, fields):
     is_complete = True
     for code in fields.keys():
         value = source.get(code, '')
+        # Для дат преобразуем формат YYYY-MM-DD'T'HH:MM:SS+... в YYYY-MM-DD
+        if 'DATE' in code and 'T' in str(value):
+            try:
+                value = str(value).split('T')[0]
+            except:
+                pass
         value_str = str(value) if value is not None else ''
         data[code] = value_str
         if not value_str.strip():
@@ -126,6 +134,9 @@ def check_fields():
 @app.route('/api/update_fields', methods=['POST'])
 def update_fields():
     data = request.get_json()
+    # Улучшенное логирование
+    app.logger.info(f"Получены данные для обновления: {json.dumps(data, ensure_ascii=False, indent=2)}")
+
     requisite_id = data.get('requisite_id')
     contact_id = data.get('contact_id')
     
