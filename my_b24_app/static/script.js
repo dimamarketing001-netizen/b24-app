@@ -83,6 +83,40 @@ BX24.ready(function() {
         return { fields, allFilled };
     }
 
+    async function performCheckAndRenderFields() {
+        const dealId = document.getElementById('deal_id').value;
+        const checkRes = await fetch('/api/check_fields', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deal_id: dealId }),
+        });
+
+        if (!checkRes.ok) {
+            const errorData = await checkRes.json();
+            showError(errorData.error || "Не удалось проверить поля в Битрикс24.");
+            return { is_complete: false }; // Ошибка, не можем продолжить
+        }
+
+        const checkData = await checkRes.json();
+        requisiteIdToUpdate = checkData.requisite_id;
+        contactIdForCreation = checkData.contact_id;
+
+        const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
+        const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
+
+        renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
+        renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
+        renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
+
+        if (!checkData.is_complete) {
+            const message = !requisiteIdToUpdate ? 
+                "У контакта нет реквизитов. Пожалуйста, заполните все поля для их создания." :
+                "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
+            showError(message);
+        }
+        return checkData;
+    }
+
     async function createSchedule() {
         const dealId = document.getElementById('deal_id').value;
         const selectedDealTypeId = document.getElementById('deal_type_select').value;
@@ -144,9 +178,11 @@ BX24.ready(function() {
         showLoader();
 
         try {
-            // --- ШАГ А: СОХРАНЕНИЕ (если нужно) ---
             const areFieldsRendered = document.querySelectorAll('.missing-field-input').length > 0;
+            let checkData;
+
             if (areFieldsRendered) {
+                // ШАГ А: СОХРАНЕНИЕ (если поля уже на экране)
                 const requisiteData = collectFields('#requisite-fields-container');
                 const registrationAddressData = collectFields('#registration-address-container');
                 const physicalAddressData = collectFields('#physical-address-container');
@@ -177,49 +213,24 @@ BX24.ready(function() {
                     hideLoader();
                     return;
                 }
+                // После успешного сохранения, переходим к проверке
             }
+            
+            // ШАГ Б: ПРОВЕРКА (выполняется всегда после потенциального сохранения или при первом клике)
+            checkData = await performCheckAndRenderFields();
 
-            // --- ШАГ Б: ПРОВЕРКА ---
-            const dealId = document.getElementById('deal_id').value;
-            const checkRes = await fetch('/api/check_fields', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deal_id: dealId }),
-            });
-
-            if (!checkRes.ok) {
-                const errorData = await checkRes.json();
-                showError(errorData.error || "Не удалось проверить поля в Битрикс24.");
-                hideLoader();
-                return;
-            }
-
-            const checkData = await checkRes.json();
-
-            // --- ШАГ В: РЕШЕНИЕ ---
+            // ШАГ В: РЕШЕНИЕ
             if (checkData.is_complete) {
                 // Все хорошо, создаем график
                 requisiteContainer.innerHTML = '';
                 regAddressContainer.style.display = 'none';
                 physAddressContainer.style.display = 'none';
                 hideError();
+                
                 await createSchedule();
-            } else {
-                // Показываем поля для дозаполнения
-                requisiteIdToUpdate = checkData.requisite_id;
-                contactIdForCreation = checkData.contact_id;
-                const message = !requisiteIdToUpdate ? 
-                    "У контакта нет реквизитов. Пожалуйста, заполните все поля для их создания." :
-                    "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
-                showError(message);
-
-                const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
-                const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
-
-                renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
-                renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
-                renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
             }
+            // Если checkData.is_complete == false, поля уже отрисованы функцией performCheckAndRenderFields,
+            // и мы просто ждем следующего клика.
 
         } catch (error) {
             showError('Произошла критическая ошибка. Пожалуйста, проверьте консоль.');
