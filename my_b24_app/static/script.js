@@ -17,6 +17,8 @@ BX24.ready(function() {
 
     let requisiteIdToUpdate = null;
     let contactIdForCreation = null;
+    let specialPaymentCounter = 0;
+    const MAX_SPECIAL_PAYMENTS = 3;
 
     // --- Вспомогательные функции ---
     function showLoader() { loaderOverlay.style.display = 'flex'; }
@@ -49,12 +51,15 @@ BX24.ready(function() {
             fieldsToRender.forEach(code => {
                 const name = fieldDefinitions[code];
                 const value = fieldsData[code] || '';
+                const isError = !value.trim();
+                const errorClass = isError ? 'field-error' : '';
+
                 const fieldRow = document.createElement('div');
                 fieldRow.classList.add('ui-form-row');
                 fieldRow.innerHTML = `
                     <div class="ui-form-label"><div class="ui-ctl-label-text">${name}</div></div>
                     <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
-                        <input type="text" class="ui-ctl-element missing-field-input" data-field-code="${code}" value="${value}" required>
+                        <input type="text" class="ui-ctl-element missing-field-input ${errorClass}" data-field-code="${code}" value="${value}" required>
                     </div></div>
                 `;
                 wrapper.appendChild(fieldRow);
@@ -85,7 +90,6 @@ BX24.ready(function() {
         try {
             const dealId = document.getElementById('deal_id').value;
 
-            // --- ЭТАП 1: Сбор и отправка данных для обновления ---
             if (document.querySelectorAll('.missing-field-input').length > 0) {
                 const requisiteData = collectFields('#requisite-fields-container');
                 const registrationAddressData = collectFields('#registration-address-container');
@@ -93,6 +97,12 @@ BX24.ready(function() {
 
                 if (!requisiteData.allFilled || !registrationAddressData.allFilled || !physicalAddressData.allFilled) {
                     showError("Пожалуйста, заполните все обязательные поля.");
+                    // Подсвечиваем незаполненные поля
+                    document.querySelectorAll('.missing-field-input').forEach(input => {
+                        if (!input.value.trim()) {
+                            input.classList.add('field-error');
+                        }
+                    });
                     return;
                 }
 
@@ -109,7 +119,6 @@ BX24.ready(function() {
                 });
             }
 
-            // --- ЭТАП 2: Повторная проверка полей ---
             const checkRes = await fetch('/api/check_fields', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -126,23 +135,21 @@ BX24.ready(function() {
             requisiteIdToUpdate = checkData.requisite_id;
             contactIdForCreation = checkData.contact_id;
 
+            const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
+            const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
+
+            renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
+            renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
+            renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
+
             if (!checkData.is_complete) {
                 const message = !requisiteIdToUpdate ? 
                     "У контакта нет реквизитов. Пожалуйста, заполните все поля для их создания." :
                     "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
                 showError(message);
-
-                // Определения полей для рендеринга
-                const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
-                const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
-
-                renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
-                renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
-                renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
                 return;
             }
 
-            // --- ЭТАП 3: Все поля заполнены, очищаем форму и продолжаем ---
             requisiteContainer.innerHTML = '';
             regAddressContainer.style.display = 'none';
             physAddressContainer.style.display = 'none';
@@ -159,7 +166,6 @@ BX24.ready(function() {
                 // ... (логика обновления типа сделки)
             }
 
-            // --- ЭТАП 4: Сбор данных и создание графика ---
             const specialPayments = Array.from(document.querySelectorAll('.special-payment-input'))
                 .map(input => parseFloat(input.value)).filter(v => !isNaN(v));
 
@@ -193,6 +199,14 @@ BX24.ready(function() {
     }
 
     // --- Привязка обработчиков ---
+    document.addEventListener('input', function(event) {
+        if (event.target.classList.contains('missing-field-input')) {
+            if (event.target.value.trim()) {
+                event.target.classList.remove('field-error');
+            }
+        }
+    });
+
     copyAddressBtn.addEventListener('click', () => {
         const regInputs = document.querySelectorAll('#registration-address-container input.missing-field-input');
         regInputs.forEach(regInput => {
@@ -200,12 +214,22 @@ BX24.ready(function() {
             const physInput = document.querySelector(`#physical-address-container input[data-field-code="${fieldCode}"]`);
             if (physInput) {
                 physInput.value = regInput.value;
+                physInput.classList.remove('field-error');
             }
         });
     });
     
     addPaymentBtn.addEventListener('click', () => {
-        // ... (без изменений)
+        if (specialPaymentCounter >= MAX_SPECIAL_PAYMENTS) return;
+        specialPaymentCounter++;
+        const newPaymentRow = document.createElement('div');
+        newPaymentRow.classList.add('ui-form-row');
+        newPaymentRow.innerHTML = `
+            <div class="ui-form-label"><div class="ui-ctl-label-text">Сумма ${specialPaymentCounter}-го платежа</div></div>
+            <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="number" class="ui-ctl-element special-payment-input" required></div></div>
+        `;
+        addPaymentRow.parentNode.insertBefore(newPaymentRow, addPaymentRow);
+        if (specialPaymentCounter >= MAX_SPECIAL_PAYMENTS) addPaymentBtn.style.display = 'none';
     });
 
     form.addEventListener('submit', (event) => {

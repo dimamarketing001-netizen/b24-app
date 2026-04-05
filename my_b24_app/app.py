@@ -53,9 +53,11 @@ def get_entity_data(source, fields):
     data = {}
     is_complete = True
     for code in fields.keys():
-        value = source.get(code, '').strip()
-        data[code] = value
-        if not value:
+        value = source.get(code, '')
+        # Убедимся, что value это строка перед вызовом strip()
+        value_str = str(value) if value is not None else ''
+        data[code] = value_str
+        if not value_str.strip():
             is_complete = False
     return data, is_complete
 
