@@ -11,7 +11,6 @@ BX24.ready(function() {
     const copyAddressBtn = document.getElementById('copy-address-btn');
     const loaderOverlay = document.getElementById('loader-overlay');
     
-    // Контейнеры для полей. Контейнер для даты рождения теперь создается динамически.
     const requisiteContainer = document.getElementById('requisite-fields-container');
     const regAddressContainer = document.getElementById('registration-address-container');
     const physAddressContainer = document.getElementById('physical-address-container');
@@ -22,6 +21,22 @@ BX24.ready(function() {
     const MAX_SPECIAL_PAYMENTS = 3;
     
     let fieldsAreDisplayed = false;
+
+    // --- Определения масок для полей ---
+    const maskDefinitions = {
+        'RQ_IDENT_DOC_SER': {
+            mask: '0000',
+            lazy: false
+        },
+        'RQ_IDENT_DOC_NUM': {
+            mask: '000000',
+            lazy: false
+        },
+        'RQ_IDENT_DOC_DEP_CODE': {
+            mask: '000-000',
+            lazy: false
+        }
+    };
 
     // --- Вспомогательные функции ---
     function showLoader() { loaderOverlay.style.display = 'flex'; }
@@ -43,13 +58,8 @@ BX24.ready(function() {
         });
     }
 
-    /**
-     * Рендерит поле даты рождения. Если контейнер не существует, создает его.
-     */
     function renderBirthdateField(birthdateValue, isComplete) {
         let container = document.getElementById('birthdate-container');
-
-        // Если поле заполнено, просто скрываем контейнер, если он вдруг есть
         if (isComplete) {
             if (container) {
                 container.innerHTML = '';
@@ -57,27 +67,22 @@ BX24.ready(function() {
             }
             return;
         }
-
-        // Если поле НЕ заполнено, создаем контейнер, если его нет
         if (!container) {
             container = document.createElement('div');
             container.id = 'birthdate-container';
             container.className = 'fields-group';
-            // Вставляем его перед контейнером реквизитов
             if (requisiteContainer) {
                 requisiteContainer.parentNode.insertBefore(container, requisiteContainer);
             } else {
-                form.appendChild(container); // Запасной вариант
+                form.appendChild(container);
             }
         }
-        
         container.innerHTML = `
             <div class="ui-form-title">
                 <div class="ui-form-title-text">Дата рождения (из Контакта)</div>
             </div>
         `;
         container.style.display = 'block';
-
         const inputId = 'input_birthdate';
         let value = birthdateValue || '';
         if (value.includes('T')) {
@@ -85,7 +90,6 @@ BX24.ready(function() {
         }
         const isError = !value.trim();
         const errorClass = isError ? 'field-error' : '';
-
         const fieldRow = document.createElement('div');
         fieldRow.classList.add('ui-form-row');
         fieldRow.innerHTML = `
@@ -135,6 +139,16 @@ BX24.ready(function() {
                     </div></div>
                 `;
                 wrapper.appendChild(fieldRow);
+
+                // --- Применение масок ---
+                if (maskDefinitions[code]) {
+                    try {
+                        const inputElement = document.getElementById(inputId);
+                        IMask(inputElement, maskDefinitions[code]);
+                    } catch (e) {
+                        console.warn("IMask is not defined. Please make sure you have included the imask.js library.");
+                    }
+                }
 
                 if (code === 'RQ_IDENT_DOC_DATE') {
                     flatpickr(`#${inputId}`, { 
@@ -229,7 +243,6 @@ BX24.ready(function() {
         }
     }
 
-    // --- Главный обработчик формы ---
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         hideError();
@@ -267,7 +280,6 @@ BX24.ready(function() {
                 if (birthdateInput) {
                     updatePayload.birthdate = birthdateValue;
                 }
-
 
                 const updateRes = await fetch('/api/update_fields', {
                     method: 'POST',
@@ -344,7 +356,6 @@ BX24.ready(function() {
         } 
     });
 
-    // --- Остальные обработчики ---
     document.addEventListener('input', function(event) {
         if (event.target.classList.contains('missing-field-input')) {
             if (event.target.value.trim()) {
