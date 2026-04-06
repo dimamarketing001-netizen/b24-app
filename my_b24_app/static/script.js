@@ -11,7 +11,7 @@ BX24.ready(function() {
     const copyAddressBtn = document.getElementById('copy-address-btn');
     const loaderOverlay = document.getElementById('loader-overlay');
     
-    const birthdateContainer = document.getElementById('birthdate-container'); // Новый контейнер
+    // Контейнеры для полей. Контейнер для даты рождения теперь создается динамически.
     const requisiteContainer = document.getElementById('requisite-fields-container');
     const regAddressContainer = document.getElementById('registration-address-container');
     const physAddressContainer = document.getElementById('physical-address-container');
@@ -43,14 +43,41 @@ BX24.ready(function() {
         });
     }
 
+    /**
+     * Рендерит поле даты рождения. Если контейнер не существует, создает его.
+     */
     function renderBirthdateField(birthdateValue, isComplete) {
-        birthdateContainer.innerHTML = '';
+        let container = document.getElementById('birthdate-container');
+
+        // Если поле заполнено, просто скрываем контейнер, если он вдруг есть
         if (isComplete) {
-            birthdateContainer.style.display = 'none';
+            if (container) {
+                container.innerHTML = '';
+                container.style.display = 'none';
+            }
             return;
         }
+
+        // Если поле НЕ заполнено, создаем контейнер, если его нет
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'birthdate-container';
+            container.className = 'fields-group';
+            // Вставляем его перед контейнером реквизитов
+            if (requisiteContainer) {
+                requisiteContainer.parentNode.insertBefore(container, requisiteContainer);
+            } else {
+                form.appendChild(container); // Запасной вариант
+            }
+        }
         
-        birthdateContainer.style.display = 'block';
+        container.innerHTML = `
+            <div class="ui-form-title">
+                <div class="ui-form-title-text">Дата рождения (из Контакта)</div>
+            </div>
+        `;
+        container.style.display = 'block';
+
         const inputId = 'input_birthdate';
         let value = birthdateValue || '';
         if (value.includes('T')) {
@@ -67,7 +94,7 @@ BX24.ready(function() {
                 <input type="text" id="${inputId}" class="ui-ctl-element missing-field-input ${errorClass}" data-field-code="BIRTHDATE" value="${value}" required>
             </div></div>
         `;
-        birthdateContainer.appendChild(fieldRow);
+        container.appendChild(fieldRow);
         flatpickr(`#${inputId}`, { 
             locale: "ru", 
             dateFormat: "Y-m-d", 
@@ -275,7 +302,10 @@ BX24.ready(function() {
             const checkData = await checkRes.json();
 
             if (checkData.is_complete) {
-                birthdateContainer.style.display = 'none';
+                const birthdateContainer = document.getElementById('birthdate-container');
+                if (birthdateContainer) {
+                    birthdateContainer.style.display = 'none';
+                }
                 requisiteContainer.innerHTML = '';
                 regAddressContainer.style.display = 'none';
                 physAddressContainer.style.display = 'none';
