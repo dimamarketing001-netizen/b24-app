@@ -1,85 +1,101 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Формирование графика платежей</title>
-    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Форма графика платежей</title>
     <script src="//api.bitrix24.com/api/v1/"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='custom_styles.css') }}">
 </head>
 <body>
-    <div class="container">
-        <div id="loader-overlay" class="loader-overlay" style="display: none;">
-            <div class="loader"></div>
-        </div>
+    <!-- Оверлей с загрузчиком -->
+    <div id="loader-overlay" class="loader-overlay" style="display: none;">
+        <div class="loader"></div>
+    </div>
 
-        <div id="custom-modal" class="custom-modal" style="display: none;">
-            <div class="modal-content">
-                <p id="modal-text"></p>
-                <div class="modal-buttons">
-                    <button id="modal-confirm-btn" class="ui-btn ui-btn-success">Да</button>
-                    <button id="modal-cancel-btn" class="ui-btn ui-btn-light-border">Отмена</button>
+    <div class="workarea-content-paddings">
+        <form id="payment-form">
+            <div class="ui-form">
+                <div id="error-message-container" class="ui-alert ui-alert-danger" style="display: none;"></div>
+
+                <!-- Контейнер для полей реквизитов -->
+                <div id="requisite-fields-container"></div>
+
+                <!-- Адрес регистрации -->
+                <div id="registration-address-container" class="address-block" style="display: none;">
+                    <div class="address-block-header">
+                        <h3 class="address-block-title">Адрес регистрации</h3>
+                    </div>
+                    <div class="fields-wrapper"></div>
                 </div>
-            </div>
-        </div>
 
-        <div id="error-message-container" class="error-message" style="display: none;"></div>
+                <!-- Фактический адрес -->
+                <div id="physical-address-container" class="address-block" style="display: none;">
+                    <div class="address-block-header">
+                        <h3 class="address-block-title">Фактический адрес</h3>
+                        <button type="button" id="copy-address-btn" class="ui-btn ui-btn-light-border ui-btn-xs">Копировать из адреса регистрации</button>
+                    </div>
+                    <div class="fields-wrapper"></div>
+                </div>
 
-        <form id="payment-form" class="form-wrapper">
-            <input type="hidden" id="deal_id" value="{{ deal_id }}">
-            <input type="hidden" id="current_deal_type_id" value="{{ deal_data.get('TYPE_ID', '') }}">
+                <hr style="margin: 20px 0; border: none; border-top: 1px solid #eef2f4;">
 
-            <div id="requisite-fields-container" class="fields-section"></div>
-            <div id="registration-address-container" class="fields-section" style="display: none;">
-                <h3 class="section-title">Адрес регистрации</h3>
-                <div class="fields-wrapper"></div>
-            </div>
-            <div id="physical-address-container" class="fields-section" style="display: none;">
-                <h3 class="section-title">Фактический адрес</h3>
-                <div class="fields-wrapper"></div>
-                <button type="button" id="copy-address-btn" class="ui-btn ui-btn-light-border">Копировать из адреса регистрации</button>
-            </div>
-
-            <div class="ui-form-row">
-                <div class="ui-form-label"><div class="ui-ctl-label-text">Тип сделки</div></div>
-                <div class="ui-form-content">
-                    <div class="ui-ctl ui-ctl-after-icon ui-ctl-dropdown ui-ctl-w100">
-                        <div class="ui-ctl-after ui-ctl-icon-angle"></div>
-                        <select id="deal_type_select" class="ui-ctl-element">
-                            {% for type_id, type_name in deal_types %}
-                                <option value="{{ type_id }}" {% if deal_data.get('TYPE_ID') == type_id %}selected{% endif %}>{{ type_name }}</option>
-                            {% endfor %}
-                        </select>
+                <!-- Поля калькулятора -->
+                <div class="ui-form-row">
+                    <div class="ui-form-label"><div class="ui-ctl-label-text">Тип сделки</div></div>
+                    <div class="ui-form-content">
+                        <div class="ui-ctl ui-ctl-after-icon ui-ctl-dropdown ui-ctl-w100">
+                            <div class="ui-ctl-after ui-ctl-icon-angle"></div>
+                            <select id="deal_type_select" name="deal_type_select" class="ui-ctl-element" required>
+                                {% for type in deal_types %}
+                                    <option value="{{ type.ID }}" {% if type.ID == deal_data.TYPE_ID %}selected{% endif %}>{{ type.VALUE }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
                     </div>
                 </div>
-            </div>
+                <div class="ui-form-row">
+                    <div class="ui-form-label"><div class="ui-ctl-label-text">Общая сумма договора</div></div>
+                    <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="number" id="total_amount" name="total_amount" class="ui-ctl-element" required></div></div>
+                </div>
+                <div class="ui-form-row">
+                    <div class="ui-form-label"><div class="ui-ctl-label-text">Общее количество платежей</div></div>
+                    <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="number" id="monthly_payments" name="monthly_payments" class="ui-ctl-element" required></div></div>
+                </div>
+                <div class="ui-form-row">
+                    <div class="ui-form-label"><div class="ui-ctl-label-text">Дата первого платежа</div></div>
+                    <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="date" id="first_payment_date" name="first_payment_date" class="ui-ctl-element" required></div></div>
+                </div>
 
-            <div class="ui-form-row">
-                <div class="ui-form-label"><div class="ui-ctl-label-text">Сумма договора</div></div>
-                <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="number" id="total_amount" class="ui-ctl-element" value="{{ deal_data.get('OPPORTUNITY', '0') }}" required></div></div>
-            </div>
-            <div class="ui-form-row">
-                <div class="ui-form-label"><div class="ui-ctl-label-text">Количество платежей</div></div>
-                <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="number" id="monthly_payments" class="ui-ctl-element" value="1" min="1" required></div></div>
-            </div>
-            <div class="ui-form-row">
-                <div class="ui-form-label"><div class="ui-ctl-label-text">Дата первого платежа</div></div>
-                <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="text" id="first_payment_date" class="ui-ctl-element" required></div></div>
-            </div>
-            <div id="add-payment-row" class="ui-form-row">
-                <button type="button" id="add-payment-btn" class="ui-btn ui-btn-light-border">Добавить особый платеж</button>
-            </div>
+                <div class="ui-form-row" id="add-payment-row">
+                    <div class="ui-form-label"></div>
+                    <div class="ui-form-content"><button type="button" id="add-payment-btn" class="ui-btn ui-btn-light-border">Добавить особенный платеж</button></div>
+                </div>
 
-            <div class="form-buttons">
-                <button type="submit" class="ui-btn ui-btn-primary">Сформировать</button>
+                <div class="ui-form-row">
+                    <div class="ui-form-label"></div>
+                    <div class="ui-form-content"><button type="submit" class="ui-btn ui-btn-primary">Сформировать</button></div>
+                </div>
             </div>
+            <input type="hidden" id="deal_id" name="deal_id" value="{{ deal_id }}">
+            <input type="hidden" id="current_deal_type_id" value="{{ deal_data.TYPE_ID }}">
         </form>
     </div>
 
+    <!-- Кастомное модальное окно -->
+    <div id="custom-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <p id="modal-text">Вы уверены?</p>
+            <div class="modal-buttons">
+                <button id="modal-confirm-btn" class="ui-btn ui-btn-primary btn-fixed-width">Да</button>
+                <button id="modal-cancel-btn" class="ui-btn ui-btn-light-border btn-fixed-width">Нет</button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-    <script src="https://npmcdn.com/flatpickr/dist/l10n/ru.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
     <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>
 </html>
