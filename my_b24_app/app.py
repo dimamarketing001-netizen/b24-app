@@ -76,27 +76,31 @@ def check_fields():
     if not deal_id: return jsonify({"error": "Не передан ID сделки"}), 400
 
     deal_data_response = b24_call_method('crm.deal.get', {'id': deal_id})
-    if not deal_data_response or 'result' not in deal_data_response: return jsonify({"error": "Не удалось получить данные по сделке"}), 500
+    if deal_data_response is None:
+        return jsonify({"error": "Сервис временно недоступен. Не удалось получить данные по сделке."}), 503
+    if 'result' not in deal_data_response: return jsonify({"error": "Не удалось получить данные по сделке"}), 500
     deal_data = deal_data_response['result']
     
     contact_id = deal_data.get('CONTACT_ID')
     if not contact_id: return jsonify({"error": "В сделке не указан контакт"}), 400
 
-    # --- Логика даты рождения ---
     contact_data_response = b24_call_method('crm.contact.get', {'id': contact_id})
-    contact_data = contact_data_response.get('result', {}) if contact_data_response else {}
+    if contact_data_response is None:
+        return jsonify({"error": "Сервис временно недоступен. Не удалось получить данные контакта."}), 503
+    contact_data = contact_data_response.get('result', {})
     birthdate = contact_data.get('BIRTHDATE', '')
     is_birthdate_complete = bool(birthdate and str(birthdate).strip())
-    # --- Конец логики даты рождения ---
 
     requisite_list_response = b24_call_method('crm.requisite.list', {'filter': {'ENTITY_TYPE_ID': 3, 'ENTITY_ID': contact_id}, 'select': ['ID']})
-    
+    if requisite_list_response is None:
+        return jsonify({"error": "Сервис временно недоступен. Не удалось получить реквизиты."}), 503
+
     is_requisites_complete = True
     response_data = {
         "requisite_id": None, "contact_id": contact_id,
         "data": {
             "requisite_fields": {}, "registration_address": {}, "physical_address": {},
-            "birthdate": birthdate # Передаем дату рождения на фронтенд
+            "birthdate": birthdate
         },
         "definitions": {
             "requisite_fields": REQUIRED_REQUISITE_FIELDS,
@@ -105,7 +109,7 @@ def check_fields():
         "is_birthdate_complete": is_birthdate_complete
     }
 
-    if not requisite_list_response or not requisite_list_response.get('result'):
+    if not requisite_list_response.get('result'):
         is_requisites_complete = False
         response_data["data"]["requisite_fields"] = {code: "" for code in REQUIRED_REQUISITE_FIELDS}
         response_data["data"]["registration_address"] = {code: "" for code in REQUIRED_ADDRESS_FIELDS}
@@ -114,9 +118,15 @@ def check_fields():
         requisite_id = requisite_list_response['result'][0]['ID']
         response_data["requisite_id"] = requisite_id
         
-        requisite_data = b24_call_method('crm.requisite.get', {'id': requisite_id}).get('result', {})
+        requisite_data_response = b24_call_method('crm.requisite.get', {'id': requisite_id})
+        if requisite_data_response is None:
+            return jsonify({"error": "Сервис временно недоступен. Не удалось получить данные реквизитов."}), 503
+        requisite_data = requisite_data_response.get('result', {})
+
         all_addresses_response = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': requisite_id, 'ENTITY_TYPE_ID': 8}})
-        all_addresses = all_addresses_response.get('result', []) if all_addresses_response else []
+        if all_addresses_response is None:
+            return jsonify({"error": "Сервис временно недоступен. Не удалось получить адреса."}), 503
+        all_addresses = all_addresses_response.get('result', [])
         
         reg_address_data = next((addr for addr in all_addresses if str(addr.get('TYPE_ID')) == '6'), {})
         phys_address_data = next((addr for addr in all_addresses if str(addr.get('TYPE_ID')) == '1'), {})
@@ -143,12 +153,10 @@ def update_fields():
     requisite_id = data.get('requisite_id')
     contact_id = data.get('contact_id')
     
-    # --- Логика даты рождения ---
     birthdate = data.get('birthdate')
     if birthdate and contact_id:
         app.logger.info(f"Обновление даты рождения для контакта {contact_id}: '{birthdate}'")
         b24_call_method('crm.contact.update', {'id': contact_id, 'fields': {'BIRTHDATE': birthdate}})
-    # --- Конец логики ---
 
     requisite_fields = data.get('requisite_fields', {})
     reg_addr_fields = data.get('registration_address', {})
@@ -158,8 +166,7 @@ def update_fields():
 
     target_requisite_id = requisite_id
 
-    # Обновление или создание реквизитов (без даты рождения)
-    if requisite_fields: # Только если есть что обновлять
+    if requisite_fields:
         if not requisite_id:
             requisite_fields.update({"ENTITY_TYPE_ID": 3, "ENTITY_ID": contact_id, "PRESET_ID": 5, "NAME": "Физ. лицо"})
             add_result = b24_call_method('crm.requisite.add', {'fields': requisite_fields})
@@ -172,8 +179,6 @@ def update_fields():
         app.logger.info("ID реквизитов не найден, обновление адресов пропускается.")
         return jsonify({"success": True, "message": "Данные контакта обновлены."}), 200
 
-
-    # Обновление адресов (если есть ID реквизитов)
     all_addresses_response = b24_call_method('crm.address.list', {'filter': {'ENTITY_ID': target_requisite_id, 'ENTITY_TYPE_ID': 8}})
     all_addresses = all_addresses_response.get('result', []) if all_addresses_response else []
     addresses_by_type = {str(addr.get('TYPE_ID')): addr for addr in all_addresses}

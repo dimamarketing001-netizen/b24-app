@@ -140,11 +140,12 @@ BX24.ready(function() {
                 `;
                 wrapper.appendChild(fieldRow);
 
-                // --- Применение масок ---
                 if (maskDefinitions[code]) {
                     try {
                         const inputElement = document.getElementById(inputId);
-                        IMask(inputElement, maskDefinitions[code]);
+                        const mask = IMask(inputElement, maskDefinitions[code]);
+                        // Устанавливаем значение ПОСЛЕ инициализации маски
+                        mask.value = value;
                     } catch (e) {
                         console.warn("IMask is not defined. Please make sure you have included the imask.js library.");
                     }
