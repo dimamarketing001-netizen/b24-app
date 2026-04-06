@@ -10,6 +10,7 @@ BX24.ready(function() {
     const errorContainer = document.getElementById('error-message-container');
     const copyAddressBtn = document.getElementById('copy-address-btn');
     const loaderOverlay = document.getElementById('loader-overlay');
+    const monthlyPaymentsInput = document.getElementById('monthly_payments');
     
     const requisiteContainer = document.getElementById('requisite-fields-container');
     const regAddressContainer = document.getElementById('registration-address-container');
@@ -18,24 +19,14 @@ BX24.ready(function() {
     let requisiteIdToUpdate = null;
     let contactIdForCreation = null;
     let specialPaymentCounter = 0;
-    const MAX_SPECIAL_PAYMENTS = 3;
     
     let fieldsAreDisplayed = false;
 
     // --- Определения масок для полей ---
     const maskDefinitions = {
-        'RQ_IDENT_DOC_SER': {
-            mask: '0000',
-            lazy: false
-        },
-        'RQ_IDENT_DOC_NUM': {
-            mask: '000000',
-            lazy: false
-        },
-        'RQ_IDENT_DOC_DEP_CODE': {
-            mask: '000-000',
-            lazy: false
-        }
+        'RQ_IDENT_DOC_SER': { mask: '0000', lazy: false },
+        'RQ_IDENT_DOC_NUM': { mask: '000000', lazy: false },
+        'RQ_IDENT_DOC_DEP_CODE': { mask: '000-000', lazy: false }
     };
 
     // --- Вспомогательные функции ---
@@ -77,17 +68,11 @@ BX24.ready(function() {
                 form.appendChild(container);
             }
         }
-        container.innerHTML = `
-            <div class="ui-form-title">
-                <div class="ui-form-title-text">Дата рождения (из Контакта)</div>
-            </div>
-        `;
+        container.innerHTML = `<div class="ui-form-title"><div class="ui-form-title-text">Дата рождения (из Контакта)</div></div>`;
         container.style.display = 'block';
         const inputId = 'input_birthdate';
         let value = birthdateValue || '';
-        if (value.includes('T')) {
-            value = value.split('T')[0];
-        }
+        if (value.includes('T')) value = value.split('T')[0];
         const isError = !value.trim();
         const errorClass = isError ? 'field-error' : '';
         const fieldRow = document.createElement('div');
@@ -99,21 +84,13 @@ BX24.ready(function() {
             </div></div>
         `;
         container.appendChild(fieldRow);
-        flatpickr(`#${inputId}`, { 
-            locale: "ru", 
-            dateFormat: "Y-m-d", 
-            altInput: true, 
-            altFormat: "d.m.Y",
-            allowInput: true
-        });
+        flatpickr(`#${inputId}`, { locale: "ru", dateFormat: "Y-m-d", altInput: true, altFormat: "d.m.Y", allowInput: true });
     }
 
     function renderFields(fieldsData, container, fieldDefinitions) {
         const wrapper = container.querySelector('.fields-wrapper') || container;
         wrapper.innerHTML = '';
-        
         const fieldsToRender = Object.keys(fieldDefinitions);
-
         if (fieldsToRender.length > 0) {
             container.style.display = 'block';
             fieldsToRender.forEach(code => {
@@ -121,44 +98,28 @@ BX24.ready(function() {
                 let value = fieldsData[code] || '';
                 const isError = !value.trim();
                 const errorClass = isError ? 'field-error' : '';
-
-                if (code === 'RQ_IDENT_DOC_DATE' && value.includes('T')) {
-                    value = value.split('T')[0];
-                }
-
+                if (code === 'RQ_IDENT_DOC_DATE' && value.includes('T')) value = value.split('T')[0];
                 const fieldRow = document.createElement('div');
                 fieldRow.classList.add('ui-form-row');
-                
-                const inputId = `input_${code}_${Math.random().toString(36).substr(2, 9)}`; 
-                let inputHtml = `<input type="text" id="${inputId}" class="ui-ctl-element missing-field-input ${errorClass}" data-field-code="${code}" value="${value}" required>`;
-
+                const inputId = `input_${code}_${Math.random().toString(36).substr(2, 9)}`;
                 fieldRow.innerHTML = `
                     <div class="ui-form-label"><div class="ui-ctl-label-text">${name}</div></div>
                     <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
-                        ${inputHtml}
+                        <input type="text" id="${inputId}" class="ui-ctl-element missing-field-input ${errorClass}" data-field-code="${code}" value="${value}" required>
                     </div></div>
                 `;
                 wrapper.appendChild(fieldRow);
-
                 if (maskDefinitions[code]) {
                     try {
                         const inputElement = document.getElementById(inputId);
                         const mask = IMask(inputElement, maskDefinitions[code]);
-                        // Устанавливаем значение ПОСЛЕ инициализации маски
                         mask.value = value;
                     } catch (e) {
                         console.warn("IMask is not defined. Please make sure you have included the imask.js library.");
                     }
                 }
-
                 if (code === 'RQ_IDENT_DOC_DATE') {
-                    flatpickr(`#${inputId}`, { 
-                        locale: "ru", 
-                        dateFormat: "Y-m-d",
-                        altInput: true, 
-                        altFormat: "d.m.Y",
-                        allowInput: true
-                    });
+                    flatpickr(`#${inputId}`, { locale: "ru", dateFormat: "Y-m-d", altInput: true, altFormat: "d.m.Y", allowInput: true });
                 }
             });
         } else {
@@ -169,13 +130,10 @@ BX24.ready(function() {
     function collectFields(containerSelector) {
         const fields = {};
         let allFilled = true;
-        const inputs = document.querySelectorAll(`${containerSelector} input.missing-field-input`);
-        inputs.forEach(input => {
+        document.querySelectorAll(`${containerSelector} input.missing-field-input`).forEach(input => {
             const value = input.value.trim();
             fields[input.dataset.fieldCode] = value;
-            if (!value) {
-                allFilled = false;
-            }
+            if (!value) allFilled = false;
         });
         return { fields, allFilled };
     }
@@ -244,6 +202,56 @@ BX24.ready(function() {
         }
     }
 
+    // --- Новая логика для управления особенными платежами ---
+    function updateSpecialPaymentsUI() {
+        const totalPayments = parseInt(monthlyPaymentsInput.value, 10) || 0;
+        let maxAllowedSpecial = 0;
+
+        if (totalPayments <= 1) maxAllowedSpecial = 0;
+        else if (totalPayments === 2) maxAllowedSpecial = 1;
+        else if (totalPayments === 3) maxAllowedSpecial = 2;
+        else maxAllowedSpecial = 3;
+
+        // Удаляем "лишние" поля, если пользователь уменьшил количество общих платежей
+        const specialPaymentRows = document.querySelectorAll('.special-payment-row');
+        if (specialPaymentRows.length > maxAllowedSpecial) {
+            for (let i = specialPaymentRows.length; i > maxAllowedSpecial; i--) {
+                specialPaymentRows[i - 1].remove();
+                specialPaymentCounter--;
+            }
+        }
+
+        // Показываем или скрываем кнопку "Добавить"
+        addPaymentBtn.style.display = (specialPaymentCounter < maxAllowedSpecial) ? 'inline-block' : 'none';
+    }
+
+    monthlyPaymentsInput.addEventListener('input', updateSpecialPaymentsUI);
+    // --- Конец новой логики ---
+
+    addPaymentBtn.addEventListener('click', () => {
+        const totalPayments = parseInt(monthlyPaymentsInput.value, 10) || 0;
+        let maxAllowedSpecial = 0;
+
+        if (totalPayments <= 1) maxAllowedSpecial = 0;
+        else if (totalPayments === 2) maxAllowedSpecial = 1;
+        else if (totalPayments === 3) maxAllowedSpecial = 2;
+        else maxAllowedSpecial = 3;
+
+        if (specialPaymentCounter >= maxAllowedSpecial) return;
+
+        specialPaymentCounter++;
+        const newPaymentRow = document.createElement('div');
+        newPaymentRow.classList.add('ui-form-row', 'special-payment-row'); // Добавляем класс для легкого удаления
+        newPaymentRow.innerHTML = `
+            <div class="ui-form-label"><div class="ui-ctl-label-text">Сумма ${specialPaymentCounter}-го платежа</div></div>
+            <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="number" class="ui-ctl-element special-payment-input" required></div></div>
+        `;
+        addPaymentRow.parentNode.insertBefore(newPaymentRow, addPaymentRow);
+        
+        // Сразу проверяем, не достигли ли мы лимита
+        updateSpecialPaymentsUI();
+    });
+
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         hideError();
@@ -258,9 +266,7 @@ BX24.ready(function() {
                 const birthdateValue = birthdateInput ? birthdateInput.value.trim() : '';
 
                 let allRequiredFieldsFilled = requisiteData.allFilled && registrationAddressData.allFilled && physicalAddressData.allFilled;
-                if (birthdateInput && !birthdateValue) {
-                    allRequiredFieldsFilled = false;
-                }
+                if (birthdateInput && !birthdateValue) allRequiredFieldsFilled = false;
 
                 if (!allRequiredFieldsFilled) {
                     showError("Пожалуйста, заполните все обязательные поля.");
@@ -278,9 +284,7 @@ BX24.ready(function() {
                     registration_address: registrationAddressData.fields,
                     physical_address: physicalAddressData.fields
                 };
-                if (birthdateInput) {
-                    updatePayload.birthdate = birthdateValue;
-                }
+                if (birthdateInput) updatePayload.birthdate = birthdateValue;
 
                 const updateRes = await fetch('/api/update_fields', {
                     method: 'POST',
@@ -316,9 +320,7 @@ BX24.ready(function() {
 
             if (checkData.is_complete) {
                 const birthdateContainer = document.getElementById('birthdate-container');
-                if (birthdateContainer) {
-                    birthdateContainer.style.display = 'none';
-                }
+                if (birthdateContainer) birthdateContainer.style.display = 'none';
                 requisiteContainer.innerHTML = '';
                 regAddressContainer.style.display = 'none';
                 physAddressContainer.style.display = 'none';
@@ -331,12 +333,9 @@ BX24.ready(function() {
                 contactIdForCreation = checkData.contact_id;
                 
                 let messages = [];
-                if (!checkData.is_birthdate_complete) {
-                    messages.push("Не заполнена дата рождения в контакте.");
-                }
-                if (!checkData.requisite_id) {
-                     messages.push("У контакта нет реквизитов.");
-                } else if (Object.values(checkData.data.requisite_fields).some(v => !v) || Object.values(checkData.data.registration_address).some(v => !v) || Object.values(checkData.data.physical_address).some(v => !v)) {
+                if (!checkData.is_birthdate_complete) messages.push("Не заполнена дата рождения в контакте.");
+                if (!checkData.requisite_id) messages.push("У контакта нет реквизитов.");
+                else if (Object.values(checkData.data.requisite_fields).some(v => !v) || Object.values(checkData.data.registration_address).some(v => !v) || Object.values(checkData.data.physical_address).some(v => !v)) {
                     messages.push("Не все поля в реквизитах или адресах заполнены.");
                 }
 
@@ -359,36 +358,21 @@ BX24.ready(function() {
 
     document.addEventListener('input', function(event) {
         if (event.target.classList.contains('missing-field-input')) {
-            if (event.target.value.trim()) {
-                event.target.classList.remove('field-error');
-            }
+            if (event.target.value.trim()) event.target.classList.remove('field-error');
         }
     });
 
     copyAddressBtn.addEventListener('click', () => {
-        const regInputs = document.querySelectorAll('#registration-address-container input.missing-field-input');
-        regInputs.forEach(regInput => {
+        document.querySelectorAll('#registration-address-container input.missing-field-input').forEach(regInput => {
             const fieldCode = regInput.dataset.fieldCode;
             const physInput = document.querySelector(`#physical-address-container input[data-field-code="${fieldCode}"]`);
             if (physInput) {
                 physInput.value = regInput.value;
-                if (physInput.value.trim()) {
-                    physInput.classList.remove('field-error');
-                }
+                if (physInput.value.trim()) physInput.classList.remove('field-error');
             }
         });
     });
     
-    addPaymentBtn.addEventListener('click', () => {
-        if (specialPaymentCounter >= MAX_SPECIAL_PAYMENTS) return;
-        specialPaymentCounter++;
-        const newPaymentRow = document.createElement('div');
-        newPaymentRow.classList.add('ui-form-row');
-        newPaymentRow.innerHTML = `
-            <div class="ui-form-label"><div class="ui-ctl-label-text">Сумма ${specialPaymentCounter}-го платежа</div></div>
-            <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100"><input type="number" class="ui-ctl-element special-payment-input" required></div></div>
-        `;
-        addPaymentRow.parentNode.insertBefore(newPaymentRow, addPaymentRow);
-        if (specialPaymentCounter >= MAX_SPECIAL_PAYMENTS) addPaymentBtn.style.display = 'none';
-    });
+    // Инициализация состояния кнопки при загрузке
+    updateSpecialPaymentsUI();
 });
