@@ -95,8 +95,10 @@ BX24.ready(function() {
             const confirmChange = await showCustomConfirm('Тип сделки в форме отличается от текущего. Изменить тип?');
             if (!confirmChange) {
                 alert('Тип сделки не изменен. Отправка графика отменена.');
-                return;
+                return; // Важно: прерываем выполнение, если пользователь отказался
             }
+            
+            showLoader(); // Показываем загрузчик только ПОСЛЕ подтверждения
             try {
                 const updateResponse = await fetch('/api/update_deal_type', {
                     method: 'POST',
@@ -106,14 +108,19 @@ BX24.ready(function() {
                 if (!updateResponse.ok) {
                     const errorData = await updateResponse.json();
                     showError(`Ошибка при изменении типа сделки: ${errorData.error}`);
+                    hideLoader();
                     return;
                 }
             } catch (error) {
                 console.error('Ошибка при запросе на изменение типа сделки:', error);
                 showError('Произошла ошибка при изменении типа сделки.');
+                hideLoader();
                 return;
             }
+        } else {
+            showLoader(); // Показываем загрузчик, если типы совпадают
         }
+
 
         const specialPayments = Array.from(document.querySelectorAll('.special-payment-input'))
             .map(input => parseFloat(input.value)).filter(v => !isNaN(v));
@@ -127,16 +134,20 @@ BX24.ready(function() {
             selected_deal_type_id: selectedDealTypeId
         };
 
-        const response = await fetch('/api/create_payment_schedule', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-        });
-        if (response.ok) {
-            BX24.closeApplication();
-        } else {
-            const errorData = await response.json();
-            showError(`Ошибка: ${errorData.error}`);
+        try {
+            const response = await fetch('/api/create_payment_schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData),
+            });
+            if (response.ok) {
+                BX24.closeApplication();
+            } else {
+                const errorData = await response.json();
+                showError(`Ошибка: ${errorData.error}`);
+            }
+        } finally {
+            hideLoader(); // Прячем загрузчик в любом случае
         }
     }
 
@@ -144,11 +155,13 @@ BX24.ready(function() {
     form.addEventListener('submit', async (event) => {
         event.preventDefault();
         hideError();
-        showLoader();
+        
+        // Не показываем загрузчик здесь
 
         try {
             // --- ШАГ А: СОХРАНЕНИЕ (если поля уже на экране) ---
             if (fieldsAreDisplayed) {
+                showLoader(); // Показываем загрузчик перед сохранением полей
                 const requisiteData = collectFields('#requisite-fields-container');
                 const registrationAddressData = collectFields('#registration-address-container');
                 const physicalAddressData = collectFields('#physical-address-container');
@@ -179,9 +192,11 @@ BX24.ready(function() {
                     hideLoader();
                     return;
                 }
+                hideLoader(); // Прячем загрузчик после сохранения
             }
             
             // --- ШАГ Б: ПРОВЕРКА (выполняется всегда) ---
+            showLoader(); // Показываем загрузчик перед проверкой полей
             const dealId = document.getElementById('deal_id').value;
             const checkRes = await fetch('/api/check_fields', {
                 method: 'POST',
@@ -195,6 +210,7 @@ BX24.ready(function() {
                 hideLoader();
                 return;
             }
+            hideLoader(); // Прячем загрузчик после проверки
 
             const checkData = await checkRes.json();
 
@@ -207,7 +223,7 @@ BX24.ready(function() {
                 hideError();
                 fieldsAreDisplayed = false; // Сбрасываем флаг
                 
-                await createSchedule();
+                await createSchedule(); // Эта функция теперь сама управляет загрузчиком
             } else {
                 // Показываем поля для дозаполнения и ставим флаг
                 requisiteIdToUpdate = checkData.requisite_id;
@@ -217,12 +233,10 @@ BX24.ready(function() {
                     "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
                 showError(message);
 
-                const REQ_FIELDS_DEF = {"RQ_LAST_NAME": "Фамилия", "RQ_FIRST_NAME": "Имя", "RQ_SECOND_NAME": "Отчество", "RQ_IDENT_DOC_SER": "Серия паспорта", "RQ_IDENT_DOC_NUM": "Номер паспорта", "RQ_IDENT_DOC_ISSUED_BY": "Кем выдан паспорт", "RQ_IDENT_DOC_DATE": "Дата выдачи паспорта"};
-                const ADDR_FIELDS_DEF = {"COUNTRY": "Страна", "PROVINCE": "Регион/Область", "CITY": "Город", "ADDRESS_1": "Улица, дом", "ADDRESS_2": "Квартира", "POSTAL_CODE": "Индекс"};
-
-                renderFields(checkData.data.requisite_fields, requisiteContainer, REQ_FIELDS_DEF);
-                renderFields(checkData.data.registration_address, regAddressContainer, ADDR_FIELDS_DEF);
-                renderFields(checkData.data.physical_address, physAddressContainer, ADDR_FIELDS_DEF);
+                // Используем определения полей, полученные с бэкенда
+                renderFields(checkData.data.requisite_fields, requisiteContainer, checkData.definitions.requisite_fields);
+                renderFields(checkData.data.registration_address, regAddressContainer, checkData.definitions.address_fields);
+                renderFields(checkData.data.physical_address, physAddressContainer, checkData.definitions.address_fields);
                 
                 fieldsAreDisplayed = true; // Ставим флаг, что поля на экране
             }
@@ -230,9 +244,9 @@ BX24.ready(function() {
         } catch (error) {
             showError('Произошла критическая ошибка. Пожалуйста, проверьте консоль.');
             console.error(error);
-        } finally {
-            hideLoader();
-        }
+            hideLoader(); // Убедимся, что загрузчик скрыт в случае ошибки
+        } 
+        // finally убран, т.к. hideLoader() теперь управляется более гранулярно
     });
 
     // --- Остальные обработчики ---
