@@ -53,19 +53,40 @@ BX24.ready(function() {
             container.style.display = 'block';
             fieldsToRender.forEach(code => {
                 const name = fieldDefinitions[code];
-                const value = fieldsData[code] || '';
+                let value = fieldsData[code] || '';
                 const isError = !value.trim();
                 const errorClass = isError ? 'field-error' : '';
 
+                // B24 might return a full ISO string with time. We only need the date part for the picker.
+                if ((code === 'RQ_BIRTHDATE' || code === 'RQ_IDENT_DOC_DATE') && value.includes('T')) {
+                    value = value.split('T')[0];
+                }
+
                 const fieldRow = document.createElement('div');
                 fieldRow.classList.add('ui-form-row');
+                
+                // Using a random component in ID to ensure it's unique if fields are re-rendered
+                const inputId = `input_${code}_${Math.random().toString(36).substr(2, 9)}`; 
+                let inputHtml = `<input type="text" id="${inputId}" class="ui-ctl-element missing-field-input ${errorClass}" data-field-code="${code}" value="${value}" required>`;
+
                 fieldRow.innerHTML = `
                     <div class="ui-form-label"><div class="ui-ctl-label-text">${name}</div></div>
                     <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
-                        <input type="text" class="ui-ctl-element missing-field-input ${errorClass}" data-field-code="${code}" value="${value}" required>
+                        ${inputHtml}
                     </div></div>
                 `;
                 wrapper.appendChild(fieldRow);
+
+                // Initialize flatpickr for date fields
+                if (code === 'RQ_BIRTHDATE' || code === 'RQ_IDENT_DOC_DATE') {
+                    flatpickr(`#${inputId}`, { 
+                        locale: "ru", 
+                        dateFormat: "Y-m-d", // Format sent to backend
+                        altInput: true, 
+                        altFormat: "d.m.Y", // Format displayed to user
+                        allowInput: true // Allows user to type date manually
+                    });
+                }
             });
         } else {
             container.style.display = 'none';

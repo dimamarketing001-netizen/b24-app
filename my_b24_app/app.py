@@ -42,18 +42,21 @@ def b24_call_method(method, params):
     """Универсальная функция для вызова методов REST API с расширенным логированием ошибок."""
     try:
         url = B24_WEBHOOK_URL + method
+        app.logger.info(f"Вызов метода Битрикс24: {method} с параметрами: {json.dumps(params, indent=2, ensure_ascii=False)}")
         response = requests.post(url, json=params)
         
         if response.status_code >= 400:
             app.logger.error(f"Ошибка от Битрикс24 для метода {method}. Статус: {response.status_code}. Тело ответа: {response.text}")
         
         response.raise_for_status()
-        return response.json()
+        response_json = response.json()
+        app.logger.info(f"Ответ от метода {method}: {json.dumps(response_json, indent=2, ensure_ascii=False)}")
+        return response_json
     except requests.exceptions.RequestException as e:
         app.logger.error(f"Сетевая ошибка при вызове метода {method}: {e}")
         return None
     except json.JSONDecodeError as e:
-        app.logger.error(f"Ошибка декодирования JSON от метода {method}: {e}")
+        app.logger.error(f"Ошибка декодирования JSON от метода {method}: {e}. Ответ: {response.text}")
         return None
 
 def get_entity_data(source, fields):
@@ -126,12 +129,30 @@ def check_fields():
 @app.route('/api/update_fields', methods=['POST'])
 def update_fields():
     data = request.get_json()
+    app.logger.info(f"Получены данные для обновления полей: {json.dumps(data, indent=2, ensure_ascii=False)}")
+
     requisite_id = data.get('requisite_id')
     contact_id = data.get('contact_id')
     
     requisite_fields = data.get('requisite_fields', {})
     reg_addr_fields = data.get('registration_address', {})
     phys_addr_fields = data.get('physical_address', {})
+
+    if "RQ_BIRTHDATE" in requisite_fields:
+        birthdate = requisite_fields["RQ_BIRTHDATE"]
+        app.logger.info(f"Дата рождения (RQ_BIRTHDATE) в полученных данных: '{birthdate}'")
+        # Попытка преобразовать дату, чтобы проверить формат
+        try:
+            # Пример формата: '2023-08-25T00:00:00.000Z' или '25.08.2023' или '2023-08-25'
+            # B24 ожидает 'YYYY-MM-DD' или 'DD.MM.YYYY'
+            # Попробуем самый общий случай и переведем в нужный B24 формат
+            if birthdate and 'T' in birthdate:
+                parsed_date = datetime.datetime.fromisoformat(birthdate.replace('Z', '+00:00'))
+                requisite_fields["RQ_BIRTHDATE"] = parsed_date.strftime('%Y-%m-%d')
+                app.logger.info(f"Дата рождения преобразована в: {requisite_fields['RQ_BIRTHDATE']}")
+        except (ValueError, TypeError) as e:
+            app.logger.warning(f"Не удалось распознать формат даты рождения '{birthdate}': {e}")
+
 
     if not (requisite_id or contact_id): return jsonify({"error": "Не передан ID"}), 400
 
