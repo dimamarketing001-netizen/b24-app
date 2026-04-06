@@ -11,6 +11,7 @@ BX24.ready(function() {
     const copyAddressBtn = document.getElementById('copy-address-btn');
     const loaderOverlay = document.getElementById('loader-overlay');
     
+    const birthdateContainer = document.getElementById('birthdate-container'); // Новый контейнер
     const requisiteContainer = document.getElementById('requisite-fields-container');
     const regAddressContainer = document.getElementById('registration-address-container');
     const physAddressContainer = document.getElementById('physical-address-container');
@@ -20,7 +21,6 @@ BX24.ready(function() {
     let specialPaymentCounter = 0;
     const MAX_SPECIAL_PAYMENTS = 3;
     
-    // --- ПЕРЕМЕННАЯ-ФЛАГ (МЕТКА) ---
     let fieldsAreDisplayed = false;
 
     // --- Вспомогательные функции ---
@@ -43,6 +43,40 @@ BX24.ready(function() {
         });
     }
 
+    function renderBirthdateField(birthdateValue, isComplete) {
+        birthdateContainer.innerHTML = '';
+        if (isComplete) {
+            birthdateContainer.style.display = 'none';
+            return;
+        }
+        
+        birthdateContainer.style.display = 'block';
+        const inputId = 'input_birthdate';
+        let value = birthdateValue || '';
+        if (value.includes('T')) {
+            value = value.split('T')[0];
+        }
+        const isError = !value.trim();
+        const errorClass = isError ? 'field-error' : '';
+
+        const fieldRow = document.createElement('div');
+        fieldRow.classList.add('ui-form-row');
+        fieldRow.innerHTML = `
+            <div class="ui-form-label"><div class="ui-ctl-label-text">Дата рождения</div></div>
+            <div class="ui-form-content"><div class="ui-ctl ui-ctl-textbox ui-ctl-w100">
+                <input type="text" id="${inputId}" class="ui-ctl-element missing-field-input ${errorClass}" data-field-code="BIRTHDATE" value="${value}" required>
+            </div></div>
+        `;
+        birthdateContainer.appendChild(fieldRow);
+        flatpickr(`#${inputId}`, { 
+            locale: "ru", 
+            dateFormat: "Y-m-d", 
+            altInput: true, 
+            altFormat: "d.m.Y",
+            allowInput: true
+        });
+    }
+
     function renderFields(fieldsData, container, fieldDefinitions) {
         const wrapper = container.querySelector('.fields-wrapper') || container;
         wrapper.innerHTML = '';
@@ -57,15 +91,13 @@ BX24.ready(function() {
                 const isError = !value.trim();
                 const errorClass = isError ? 'field-error' : '';
 
-                // B24 might return a full ISO string with time. We only need the date part for the picker.
-                if ((code === 'RQ_BIRTHDATE' || code === 'RQ_IDENT_DOC_DATE') && value.includes('T')) {
+                if (code === 'RQ_IDENT_DOC_DATE' && value.includes('T')) {
                     value = value.split('T')[0];
                 }
 
                 const fieldRow = document.createElement('div');
                 fieldRow.classList.add('ui-form-row');
                 
-                // Using a random component in ID to ensure it's unique if fields are re-rendered
                 const inputId = `input_${code}_${Math.random().toString(36).substr(2, 9)}`; 
                 let inputHtml = `<input type="text" id="${inputId}" class="ui-ctl-element missing-field-input ${errorClass}" data-field-code="${code}" value="${value}" required>`;
 
@@ -77,14 +109,13 @@ BX24.ready(function() {
                 `;
                 wrapper.appendChild(fieldRow);
 
-                // Initialize flatpickr for date fields
-                if (code === 'RQ_BIRTHDATE' || code === 'RQ_IDENT_DOC_DATE') {
+                if (code === 'RQ_IDENT_DOC_DATE') {
                     flatpickr(`#${inputId}`, { 
                         locale: "ru", 
-                        dateFormat: "Y-m-d", // Format sent to backend
+                        dateFormat: "Y-m-d",
                         altInput: true, 
-                        altFormat: "d.m.Y", // Format displayed to user
-                        allowInput: true // Allows user to type date manually
+                        altFormat: "d.m.Y",
+                        allowInput: true
                     });
                 }
             });
@@ -116,10 +147,10 @@ BX24.ready(function() {
             const confirmChange = await showCustomConfirm('Тип сделки в форме отличается от текущего. Изменить тип?');
             if (!confirmChange) {
                 alert('Тип сделки не изменен. Отправка графика отменена.');
-                return; // Важно: прерываем выполнение, если пользователь отказался
+                return;
             }
             
-            showLoader(); // Показываем загрузчик только ПОСЛЕ подтверждения
+            showLoader();
             try {
                 const updateResponse = await fetch('/api/update_deal_type', {
                     method: 'POST',
@@ -139,9 +170,8 @@ BX24.ready(function() {
                 return;
             }
         } else {
-            showLoader(); // Показываем загрузчик, если типы совпадают
+            showLoader();
         }
-
 
         const specialPayments = Array.from(document.querySelectorAll('.special-payment-input'))
             .map(input => parseFloat(input.value)).filter(v => !isNaN(v));
@@ -168,7 +198,7 @@ BX24.ready(function() {
                 showError(`Ошибка: ${errorData.error}`);
             }
         } finally {
-            hideLoader(); // Прячем загрузчик в любом случае
+            hideLoader();
         }
     }
 
@@ -177,17 +207,21 @@ BX24.ready(function() {
         event.preventDefault();
         hideError();
         
-        // Не показываем загрузчик здесь
-
         try {
-            // --- ШАГ А: СОХРАНЕНИЕ (если поля уже на экране) ---
             if (fieldsAreDisplayed) {
-                showLoader(); // Показываем загрузчик перед сохранением полей
+                showLoader();
                 const requisiteData = collectFields('#requisite-fields-container');
                 const registrationAddressData = collectFields('#registration-address-container');
                 const physicalAddressData = collectFields('#physical-address-container');
+                const birthdateInput = document.querySelector('#birthdate-container input.missing-field-input');
+                const birthdateValue = birthdateInput ? birthdateInput.value.trim() : '';
 
-                if (!requisiteData.allFilled || !registrationAddressData.allFilled || !physicalAddressData.allFilled) {
+                let allRequiredFieldsFilled = requisiteData.allFilled && registrationAddressData.allFilled && physicalAddressData.allFilled;
+                if (birthdateInput && !birthdateValue) {
+                    allRequiredFieldsFilled = false;
+                }
+
+                if (!allRequiredFieldsFilled) {
                     showError("Пожалуйста, заполните все обязательные поля.");
                     document.querySelectorAll('.missing-field-input').forEach(input => {
                         if (!input.value.trim()) input.classList.add('field-error');
@@ -196,16 +230,22 @@ BX24.ready(function() {
                     return;
                 }
 
+                const updatePayload = { 
+                    requisite_id: requisiteIdToUpdate, 
+                    contact_id: contactIdForCreation,
+                    requisite_fields: requisiteData.fields,
+                    registration_address: registrationAddressData.fields,
+                    physical_address: physicalAddressData.fields
+                };
+                if (birthdateInput) {
+                    updatePayload.birthdate = birthdateValue;
+                }
+
+
                 const updateRes = await fetch('/api/update_fields', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        requisite_id: requisiteIdToUpdate, 
-                        contact_id: contactIdForCreation,
-                        requisite_fields: requisiteData.fields,
-                        registration_address: registrationAddressData.fields,
-                        physical_address: physicalAddressData.fields
-                    }),
+                    body: JSON.stringify(updatePayload),
                 });
 
                 if (!updateRes.ok) {
@@ -213,11 +253,10 @@ BX24.ready(function() {
                     hideLoader();
                     return;
                 }
-                hideLoader(); // Прячем загрузчик после сохранения
+                hideLoader();
             }
             
-            // --- ШАГ Б: ПРОВЕРКА (выполняется всегда) ---
-            showLoader(); // Показываем загрузчик перед проверкой полей
+            showLoader();
             const dealId = document.getElementById('deal_id').value;
             const checkRes = await fetch('/api/check_fields', {
                 method: 'POST',
@@ -231,43 +270,48 @@ BX24.ready(function() {
                 hideLoader();
                 return;
             }
-            hideLoader(); // Прячем загрузчик после проверки
+            hideLoader();
 
             const checkData = await checkRes.json();
 
-            // --- ШАГ В: РЕШЕНИЕ ---
             if (checkData.is_complete) {
-                // Все хорошо, создаем график
+                birthdateContainer.style.display = 'none';
                 requisiteContainer.innerHTML = '';
                 regAddressContainer.style.display = 'none';
                 physAddressContainer.style.display = 'none';
                 hideError();
-                fieldsAreDisplayed = false; // Сбрасываем флаг
+                fieldsAreDisplayed = false;
                 
-                await createSchedule(); // Эта функция теперь сама управляет загрузчиком
+                await createSchedule();
             } else {
-                // Показываем поля для дозаполнения и ставим флаг
                 requisiteIdToUpdate = checkData.requisite_id;
                 contactIdForCreation = checkData.contact_id;
-                const message = !requisiteIdToUpdate ? 
-                    "У контакта нет реквизитов. Пожалуйста, заполните все поля для их создания." :
-                    "Не заполнены все обязательные поля. Пожалуйста, заполните их и нажмите 'Сформировать' еще раз.";
-                showError(message);
+                
+                let messages = [];
+                if (!checkData.is_birthdate_complete) {
+                    messages.push("Не заполнена дата рождения в контакте.");
+                }
+                if (!checkData.requisite_id) {
+                     messages.push("У контакта нет реквизитов.");
+                } else if (Object.values(checkData.data.requisite_fields).some(v => !v) || Object.values(checkData.data.registration_address).some(v => !v) || Object.values(checkData.data.physical_address).some(v => !v)) {
+                    messages.push("Не все поля в реквизитах или адресах заполнены.");
+                }
 
-                // Используем определения полей, полученные с бэкенда
+                showError("Необходимо дозаполнить данные: " + messages.join(' '));
+
+                renderBirthdateField(checkData.data.birthdate, checkData.is_birthdate_complete);
                 renderFields(checkData.data.requisite_fields, requisiteContainer, checkData.definitions.requisite_fields);
                 renderFields(checkData.data.registration_address, regAddressContainer, checkData.definitions.address_fields);
                 renderFields(checkData.data.physical_address, physAddressContainer, checkData.definitions.address_fields);
                 
-                fieldsAreDisplayed = true; // Ставим флаг, что поля на экране
+                fieldsAreDisplayed = true;
             }
 
         } catch (error) {
             showError('Произошла критическая ошибка. Пожалуйста, проверьте консоль.');
             console.error(error);
-            hideLoader(); // Убедимся, что загрузчик скрыт в случае ошибки
+            hideLoader();
         } 
-        // finally убран, т.к. hideLoader() теперь управляется более гранулярно
     });
 
     // --- Остальные обработчики ---
