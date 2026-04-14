@@ -9,6 +9,7 @@ BX24.ready(function() {
     const addPaymentRow = document.getElementById('add-payment-row');
     const errorContainer = document.getElementById('error-message-container');
     const copyAddressBtn = document.getElementById('copy-address-btn');
+    const copyFromPhysicalBtn = document.getElementById('copy-from-physical-btn'); // Новая кнопка
     const loaderOverlay = document.getElementById('loader-overlay');
     const monthlyPaymentsInput = document.getElementById('monthly_payments');
     
@@ -369,6 +370,17 @@ BX24.ready(function() {
             if (physInput) {
                 physInput.value = regInput.value;
                 if (physInput.value.trim()) physInput.classList.remove('field-error');
+            }
+        });
+    });
+
+    copyFromPhysicalBtn.addEventListener('click', () => {
+        document.querySelectorAll('#physical-address-container input.missing-field-input').forEach(physInput => {
+            const fieldCode = physInput.dataset.fieldCode;
+            const regInput = document.querySelector(`#registration-address-container input[data-field-code="${fieldCode}"]`);
+            if (regInput) {
+                regInput.value = physInput.value;
+                if (regInput.value.trim()) regInput.classList.remove('field-error');
             }
         });
     });
