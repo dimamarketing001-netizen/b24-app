@@ -6,6 +6,7 @@ import json
 import threading
 import os
 from dotenv import load_dotenv
+from dateutil.relativedelta import relativedelta # Импортируем relativedelta
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), '..', '.env'))
 
@@ -211,7 +212,7 @@ def run_b24_process(deal_id, total_amount, monthly_payments, first_payment_date_
     remaining_payments_count = monthly_payments
 
     for i, special_amount in enumerate(special_payments):
-        payment_date = first_payment_date + datetime.timedelta(days=30 * i)
+        payment_date = first_payment_date + relativedelta(months=i) # Используем relativedelta
         product_rows.append({"PRODUCT_NAME": payment_date.strftime('%d.%m.%Y'), "PRICE": special_amount, "QUANTITY": 1})
         remaining_amount -= special_amount
         remaining_payments_count -= 1
@@ -225,7 +226,7 @@ def run_b24_process(deal_id, total_amount, monthly_payments, first_payment_date_
         last_payment_adjustment = total_amount - total_calculated
         start_index = len(special_payments)
         for i in range(start_index, monthly_payments):
-            payment_date = first_payment_date + datetime.timedelta(days=30 * i)
+            payment_date = first_payment_date + relativedelta(months=i) # Используем relativedelta
             current_payment = standard_payment_amount
             if i == monthly_payments - 1:
                 current_payment += last_payment_adjustment
