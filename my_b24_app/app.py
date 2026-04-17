@@ -239,7 +239,37 @@ def run_b24_process(deal_id, total_amount, monthly_payments, first_payment_date_
         b24_call_method('crm.documentgenerator.document.add', {'templateId': template_id, 'entityTypeId': '2', 'entityId': deal_id})
     else:
         app.logger.info(f"Для типа сделки '{deal_type_id}' не указан шаблон документа.")
-    
+
+    # --- Новая логика создания сделок ---
+    if deal_type_id in ["SALE", "UC_UABTV4"]:
+        app.logger.info(f"Тип сделки '{deal_type_id}' требует создания дополнительных сделок.")
+        
+        # Получаем данные исходной сделки, чтобы получить CONTACT_ID и TITLE
+        source_deal_data = get_b24_deal(deal_id)
+        contact_id = source_deal_data.get('CONTACT_ID')
+        source_title = source_deal_data.get('TITLE', 'Сделка')
+
+        if not contact_id:
+            app.logger.error(f"Не удалось получить CONTACT_ID из исходной сделки {deal_id}. Создание доп. сделок отменено.")
+            return
+
+        deals_to_create = [
+            {'category_id': 14, 'amount': 25000, 'stage_id': 'C14:NEW', 'title_suffix': ' (доп. 1)'},
+            {'category_id': 16, 'amount': 20000, 'stage_id': 'C16:NEW', 'title_suffix': ' (доп. 2)'},
+            {'category_id': 18, 'amount': 25000, 'stage_id': 'C18:NEW', 'title_suffix': ' (доп. 3)'}
+        ]
+
+        for deal_info in deals_to_create:
+            new_deal_fields = {
+                'TITLE': f"{source_title}{deal_info['title_suffix']}",
+                'CATEGORY_ID': deal_info['category_id'],
+                'OPPORTUNITY': deal_info['amount'],
+                'STAGE_ID': deal_info['stage_id'],
+                'CONTACT_ID': contact_id
+            }
+            b24_call_method('crm.deal.add', {'fields': new_deal_fields})
+            app.logger.info(f"Создана дополнительная сделка в воронке {deal_info['category_id']}.")
+
     app.logger.info(f"Фоновый процесс для сделки {deal_id} завершен.")
 
 @app.route('/', methods=['GET', 'POST'])
