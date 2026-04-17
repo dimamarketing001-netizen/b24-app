@@ -254,9 +254,9 @@ def run_b24_process(deal_id, total_amount, monthly_payments, first_payment_date_
             return
 
         deals_to_create = [
-            {'category_id': 14, 'amount': 25000, 'stage_id': 'C14:NEW', 'title_suffix': ' (доп. 1)'},
-            {'category_id': 16, 'amount': 20000, 'stage_id': 'C16:NEW', 'title_suffix': ' (доп. 2)'},
-            {'category_id': 18, 'amount': 25000, 'stage_id': 'C18:NEW', 'title_suffix': ' (доп. 3)'}
+            {'category_id': 14, 'amount': 25000, 'stage_id': 'C14:NEW', 'title_suffix': ' - Финансовый управляющий'},
+            {'category_id': 16, 'amount': 20000, 'stage_id': 'C16:NEW', 'title_suffix': ' - Публикация'},
+            {'category_id': 18, 'amount': 25000, 'stage_id': 'C18:NEW', 'title_suffix': ' - Депозит'}
         ]
 
         for deal_info in deals_to_create:
