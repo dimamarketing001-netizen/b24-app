@@ -153,7 +153,7 @@ BX24.ready(function() {
             
             showLoader();
             try {
-                const updateResponse = await fetch('/api/update_deal_type', {
+                const updateResponse = await fetch('/api2/update_deal_type', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ deal_id: dealId, new_type_id: selectedDealTypeId }),
@@ -187,7 +187,7 @@ BX24.ready(function() {
         };
 
         try {
-            const response = await fetch('/api/create_payment_schedule', {
+            const response = await fetch('/api2/create_payment_schedule', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
@@ -287,7 +287,7 @@ BX24.ready(function() {
                 };
                 if (birthdateInput) updatePayload.birthdate = birthdateValue;
 
-                const updateRes = await fetch('/api/update_fields', {
+                const updateRes = await fetch('/api2/update_fields', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(updatePayload),
@@ -303,7 +303,7 @@ BX24.ready(function() {
             
             showLoader();
             const dealId = document.getElementById('deal_id').value;
-            const checkRes = await fetch('/api/check_fields', {
+            const checkRes = await fetch('/api2/check_fields', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ deal_id: dealId }),
