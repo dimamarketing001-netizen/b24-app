@@ -39,7 +39,7 @@ REQUIRED_ADDRESS_FIELDS = {
 }
 
 def b24_call_method(method, params):
-    """Универсальная функция для вызова методов REST API с расширенным логированием ошибок."""
+    """Универсальная функция для вызова методов REST api2 с расширенным логированием ошибок."""
     try:
         url = B24_WEBHOOK_URL + method
         app.logger.info(f"Вызов метода Битрикс24: {method} с параметрами: {json.dumps(params, indent=2, ensure_ascii=False)}")
@@ -70,7 +70,7 @@ def get_entity_data(source, fields):
             is_complete = False
     return data, is_complete
 
-@app.route('/api/check_fields', methods=['POST'])
+@app.route('/api2/check_fields', methods=['POST'])
 def check_fields():
     data = request.get_json()
     deal_id = data.get('deal_id')
@@ -146,7 +146,7 @@ def check_fields():
     response_data["is_complete"] = is_requisites_complete and is_birthdate_complete
     return jsonify(response_data)
 
-@app.route('/api/update_fields', methods=['POST'])
+@app.route('/api2/update_fields', methods=['POST'])
 def update_fields():
     data = request.get_json()
     app.logger.info(f"Получены данные для обновления полей: {json.dumps(data, indent=2, ensure_ascii=False)}")
@@ -289,7 +289,7 @@ def index():
     
     return render_template('index.html', deal_id=deal_id, deal_data=deal_data, deal_types=HARDCODED_DEAL_TYPES)
 
-@app.route('/api/update_deal_type', methods=['POST'])
+@app.route('/api2/update_deal_type', methods=['POST'])
 def update_deal_type():
     data = request.get_json()
     deal_id = data.get('deal_id')
@@ -306,7 +306,7 @@ def update_deal_type():
         app.logger.error(f"Не удалось обновить тип сделки: {update_result}")
         return jsonify({"error": "Не удалось обновить тип сделки."}), 500
 
-@app.route('/api/create_payment_schedule', methods=['POST'])
+@app.route('/api2/create_payment_schedule', methods=['POST'])
 def create_payment_schedule():
     data = request.get_json()
     try:
