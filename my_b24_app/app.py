@@ -240,6 +240,9 @@ def run_b24_process(deal_id, total_amount, monthly_payments, first_payment_date_
     else:
         app.logger.info(f"Для типа сделки '{deal_type_id}' не указан шаблон документа.")
 
+    b24_call_method('crm.deal.update', {'id': deal_id, 'fields': {'UF_CRM_1776843426141': True}})
+    app.logger.info(f"Поле UF_CRM_1776843426141 установлено в True для сделки {deal_id}.")
+
     # --- Новая логика создания сделок ---
     if deal_type_id in ["SALE", "UC_UABTV4"]:
         app.logger.info(f"Тип сделки '{deal_type_id}' требует создания дополнительных сделок.")
