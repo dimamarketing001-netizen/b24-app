@@ -257,21 +257,33 @@ def run_b24_process(deal_id, total_amount, monthly_payments, first_payment_date_
             return
 
         deals_to_create = [
-            {'category_id': 14, 'amount': 25000, 'stage_id': 'C14:NEW', 'title_suffix': ' - Финансовый управляющий'},
             {'category_id': 16, 'amount': 20000, 'stage_id': 'C16:NEW', 'title_suffix': ' - Публикация'},
             {'category_id': 18, 'amount': 25000, 'stage_id': 'C18:NEW', 'title_suffix': ' - Депозит'}
         ]
 
         for deal_info in deals_to_create:
+            category_id = deal_info['category_id']
+
+            existing_deals_response = b24_call_method('crm.deal.list', {
+                'filter': {'CONTACT_ID': contact_id, 'CATEGORY_ID': category_id},
+                'select': ['ID']
+            })
+            existing_deals = existing_deals_response.get('result', []) if existing_deals_response else []
+
+            if existing_deals:
+                app.logger.info(
+                    f"Сделка в воронке {category_id} для контакта {contact_id} уже существует. Создание пропускается.")
+                continue
+
             new_deal_fields = {
                 'TITLE': f"{source_title}{deal_info['title_suffix']}",
-                'CATEGORY_ID': deal_info['category_id'],
+                'CATEGORY_ID': category_id,
                 'OPPORTUNITY': deal_info['amount'],
                 'STAGE_ID': deal_info['stage_id'],
                 'CONTACT_ID': contact_id
             }
             b24_call_method('crm.deal.add', {'fields': new_deal_fields})
-            app.logger.info(f"Создана дополнительная сделка в воронке {deal_info['category_id']}.")
+            app.logger.info(f"Создана дополнительная сделка в воронке {category_id}.")
 
     app.logger.info(f"Фоновый процесс для сделки {deal_id} завершен.")
 
